@@ -1,0 +1,73 @@
+{
+    "dict_id": {
+        "meta": {
+            "release": "PUBLIC",
+            "sourceLanguage": "en",
+            "targetLanguage": ["sl"],
+            "genre": ["spe"],
+            "license": "https://creativecommons.org/licenses/by/4.0/",
+            "title": "Dictionary from JSON Example",
+            "creator": [
+                {
+                    "name": "Max Lexicographer",
+                    "email": "max@localhost"
+                }
+            ],
+            "publisher": "ELEXIS"
+        },
+        "entries": [
+            {
+                "@type": "Word",
+                "@id": "cat-n",
+                "language": "en",
+                "partOfSpeech": "NOUN",
+                "canonicalForm": {
+                    "writtenRep": {
+                        "en": ["cat"],
+                        "sl": ["mačka"]
+                    }
+                },
+                "senses": [
+                    {
+                        "definition": {
+                            "en": "a type of animal",
+                            "sl": "vrsta živali"
+                        },
+                        "reference": ["http://dbpedia.org/page/Cat"]
+                    },
+                    {
+                        "definition": {
+                            "en": "an attractive woman",
+                            "sl": "privlačna ženska"
+                        }
+                    }
+                ]
+            },
+            {
+                "@type": "Word",
+                "@id": "cat-v",
+                "language": "en",
+                "partOfSpeech": "VERB",
+                "canonicalForm": {
+                    "writtenRep": {
+                        "en": ["cat"]
+                    }
+                },
+                "senses": [
+                    {
+                        "definition": {
+                            "en": "print contents of a computer file"
+                        }
+                    },
+                    {
+                        "definition": {
+                            "en": "raise (an anchor) from the surface of the water to the cathead"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+

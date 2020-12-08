@@ -1,0 +1,31 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "loggers": {
+        "app": {
+            "level": "DEBUG",
+            "propagate": false,
+            "handlers": ["console", "file"]
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose"
+        },
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "verbose",
+            "filename": ".app.log",
+            "maxBytes": 5000000,
+            "backupCount": 4
+        }
+    },
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname:8s} {name:15s} {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        }
+    }
+}

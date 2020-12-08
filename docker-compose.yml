@@ -1,0 +1,38 @@
+version: "3"
+services:
+  app:
+    build: .
+    image: dictionary-matrix
+    restart: unless-stopped
+    user: "10000:10000"
+    depends_on:
+      - mongodb
+    networks:
+      - frontend
+      - backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads:/uploads
+    environment:
+      DEBUG: true
+      UPLOAD_PATH: '/uploads'
+      SESSION_COOKIE_SECRET_KEY: "change me secret"
+      MONGODB_CONNECTION_STRING: 'mongodb://mongodb'
+
+  mongodb:
+    image: mongo:4.4
+    restart: unless-stopped
+    volumes:
+      - mongodbdata:/data/db
+    networks:
+      - backend
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+
+volumes:
+  uploads:
+  mongodbdata:

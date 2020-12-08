@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Tests
+pytest
+pytest-asyncio
+pytest-httpserver
+asgi-lifespan
+
+# Lint
+flake8
+mypy

@@ -1,0 +1,22 @@
+# Framework
+fastapi
+starlette
+python-multipart
+itsdangerous
+orjson
+pydantic[dotenv, email]
+click
+
+# Web server
+uvicorn[standard]
+gunicorn
+
+# Database
+pymongo
+motor
+
+# Dictionaries
+lxml
+rdflib
+rdflib-jsonld
+httpx

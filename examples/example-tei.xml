@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng"
+            schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
+<!-- TODO: This validates with `xmllint -relaxng $model-href $file` -->
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>TEI Example Dictionary</title>
+                <author>Max Lexicographer <email>max@localhost</email></author>
+            </titleStmt>
+            <publicationStmt>
+                <publisher>
+                    <name>Example Publishing</name> and <name>ELEXIS</name>
+                </publisher>
+            </publicationStmt>
+            <sourceDesc>
+                <p>Copied off some floppies in the '90s</p>
+            </sourceDesc>
+        </fileDesc>
+        <encodingDesc>
+            <ab>Examples are in TEI-Lex0</ab>
+        </encodingDesc>
+    </teiHeader>
+    <text>
+        <body>
+            <entry xml:id="cat-n">
+                <form type="lemma">
+                    <orth xml:lang="en">cat</orth>
+                    <orth xml:lang="sl">mačka</orth>
+                </form>
+                <gramGrp>
+                    <pos norm="NOUN">noun</pos>
+                </gramGrp>
+                <sense n="1">
+                    <def xml:lang="en">a type of animal</def>
+                    <def xml:lang="sl">vrsta živali</def>
+                </sense>
+                <sense n="2">
+                    <def xml:lang="en">an attractive woman</def>
+                    <def xml:lang="sl">privlačna ženska</def>
+                </sense>
+            </entry>
+            <entry xml:id="cat-v">
+                <form type="lemma">
+                    <orth xml:lang="en">cat</orth>
+                </form>
+                <gramGrp>
+                    <pos norm="VERB">verb</pos>
+                </gramGrp>
+                <sense n="1">
+                    <def xml:lang="en">print contents of a computer file</def>
+                </sense>
+                <sense n="2">
+                    <def xml:lang="en">raise (an anchor) from the surface of the water to the cathead</def>
+                </sense>
+            </entry>
+        </body>
+    </text>
+</TEI>
