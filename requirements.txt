@@ -6,6 +6,7 @@ itsdangerous
 orjson
 pydantic[dotenv, email]
 click
+filelock
 
 # Web server
 uvicorn[standard]

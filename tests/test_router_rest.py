@@ -19,7 +19,7 @@ async def test_dictionaries(client, example_id):
     response = await client.get('/dictionaries')
     assert response.status_code == HTTPStatus.OK
     assert 'dictionaries' in response.json()
-    assert len(response.json()['dictionaries'])
+    assert example_id in response.json()['dictionaries']
 
 
 async def test_about(client, example_id):

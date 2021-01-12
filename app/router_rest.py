@@ -9,9 +9,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, Response
 
 from .db import get_db
-from .models import Dictionaries, Lemma, PartOfSpeech, RdfFormats
-from .rdf import EntryExport
-from .utils import assert_never, enum_values
+from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech, RdfFormats
+from .rdf import JSONLD_CONTEXT, entry_to_jsonld, entry_to_ontolex, entry_to_tei
 
 log = logging.getLogger(__name__)
 
@@ -49,8 +48,7 @@ async def _get_db_verify_api_key(
     return db
 
 
-@router.get('/dictionaries',
-            response_model=Dictionaries)
+@router.get('/dictionaries', response_model=Dictionaries)
 async def dictionaries(
         db=Depends(get_db),
         api_key=_APIKEY_HEADER,
@@ -63,7 +61,7 @@ async def dictionaries(
     return dict(dictionaries=names)
 
 
-@router.get('/about/{dictionary}')  # TODO: response_model=Dictionary)
+@router.get('/about/{dictionary}', response_model=Dictionary)
 async def about(
         db=Depends(_get_db_verify_api_key),
         dictionary: str = _DICT_PATH,
@@ -77,8 +75,7 @@ async def about(
     return doc
 
 
-@router.get('/list/{dictionary}',
-            response_model=List[Lemma])
+@router.get('/list/{dictionary}', response_model=List[Lemma])
 async def list_dict(
         db=Depends(_get_db_verify_api_key),
         dictionary: str = _DICT_PATH,
@@ -95,14 +92,13 @@ async def list_dict(
                               itertools.repeat(True)))},
     ]).to_list(None)
     # Advertize available formats  # TODO drop since all are supported?
-    formats = enum_values(RdfFormats)
+    formats = RdfFormats.values()
     for entry in entries:
         entry['formats'] = formats
     return jsonable_encoder(entries, custom_encoder={ObjectId: str})
 
 
-@router.get('/lemma/{dictionary}/{headword}',
-            response_model=List[Lemma])
+@router.get('/lemma/{dictionary}/{headword}', response_model=List[Lemma])
 async def list_lemma(
         db=Depends(_get_db_verify_api_key),
         dictionary: str = _DICT_PATH,
@@ -124,7 +120,7 @@ async def list_lemma(
                               itertools.repeat(True)))},
     ]).to_list(None)
     # Advertize available formats  # TODO drop since all are supported?
-    formats = enum_values(RdfFormats)
+    formats = RdfFormats.values()
     for entry in entries:
         entry['formats'] = formats
     return jsonable_encoder(entries, custom_encoder={ObjectId: str})
@@ -136,7 +132,12 @@ async def entry_json(
         dictionary: str = _DICT_PATH,
         entry_id: str = Path(...),
 ):
-    return await _formatted_entry(RdfFormats.JSON, db, dictionary, entry_id)
+    entry = await _get_entry(db, dictionary, entry_id)
+    return Response(entry_to_jsonld(entry),
+                    headers={'Link': '</context.jsonld>; '
+                                     'rel="http://www.w3.org/ns/json-ld#context"; '
+                                     'type="application/ld+json"'},
+                    media_type='application/ld+json')
 
 
 @router.get('/tei/{dictionary}/{entry_id}')
@@ -145,7 +146,9 @@ async def entry_tei(
         dictionary: str = _DICT_PATH,
         entry_id: str = Path(...),
 ):
-    return await _formatted_entry(RdfFormats.TEI, db, dictionary, entry_id)
+    entry = await _get_entry(db, dictionary, entry_id)
+    return Response(entry_to_tei(entry),
+                    media_type='text/xml')
 
 
 @router.get('/ontolex/{dictionary}/{entry_id}')
@@ -154,34 +157,19 @@ async def entry_ontolex(
         dictionary: str = _DICT_PATH,
         entry_id: str = Path(...),
 ):
-    return await _formatted_entry(RdfFormats.ONTOLEX, db, dictionary, entry_id)
+    entry = await _get_entry(db, dictionary, entry_id)
+    return Response(entry_to_ontolex(entry),
+                    media_type='text/turtle')
 
 
-async def _formatted_entry(
-        format: RdfFormats,
-        db,
-        dictionary,
-        entry_id,
-):
+async def _get_entry(db, dictionary, entry_id,):
     entry = await db.entry.find_one(
         {'_dict_id': ObjectId(dictionary), '_id': ObjectId(entry_id)},
         {'_dict_id': False, 'lemma': False})
-    if format is RdfFormats.JSON:
-        return Response(EntryExport.to_jsonld(entry),
-                        headers={'Link': '</context.jsonld>; '
-                                         'rel="http://www.w3.org/ns/json-ld#context"; '
-                                         'type="application/ld+json"'},
-                        media_type='application/ld+json')
-    if format is RdfFormats.TEI:
-        return Response(EntryExport.to_tei(entry),
-                        media_type='text/xml')
-    if format is RdfFormats.ONTOLEX:
-        return Response(EntryExport.to_ontolex(entry),
-                        media_type='text/turtle')
-    assert_never(format)
+    return entry
 
 
 @router.get('/context.jsonld', include_in_schema=False)
 def jsonld_context():
-    return ORJSONResponse(EntryExport.JSONLD_CONTEXT,
+    return ORJSONResponse(JSONLD_CONTEXT,
                           media_type='application/ld+json')

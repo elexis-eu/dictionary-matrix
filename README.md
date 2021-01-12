@@ -13,8 +13,8 @@ A lexicographic web API built with [Python], [FastAPI], [MongoDB].
 
 ### Run
 
-    $ python app debug   # For development
-    $ python app deploy  # For production
+    $ python app develop  # For development
+    $ python app deploy   # For production
 
 ### Test
 

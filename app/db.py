@@ -1,4 +1,6 @@
 import logging
+import os
+import re
 from contextlib import contextmanager
 from functools import lru_cache
 from typing import AsyncGenerator, ContextManager
@@ -6,6 +8,7 @@ from typing import AsyncGenerator, ContextManager
 import pymongo.collection
 import pymongo.database
 import pymongo.errors
+from filelock import FileLock
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 
@@ -63,17 +66,27 @@ def get_db_sync() -> ContextManager[_DbType]:
             yield db
 
 
+def safe_path(part):
+    return re.sub(r'[^\w.-]', '_', part)
+
+
 def dispatch_migration():
     """
     In-house migrations dispatcher.
     Hopefully, it is feature-complete and will never need amendments. 🤞
     """
+    lock_file = os.path.join(settings.UPLOAD_PATH,
+                             safe_path(f'{settings.MONGODB_CONNECTION_STRING}'
+                                       f'-{settings.MONGODB_DATABASE}.lock'))
     try:
-        with get_db_sync() as db:  # type: _DbType
+        with FileLock(lock_file), \
+                get_db_sync() as db:  # type: _DbType
             if not db.list_collection_names():
                 return _migration_v0(db)
-            assert sorted(db.list_collection_names()) == sorted(_collection_names)
             ...
+            assert sorted(db.list_collection_names()) == sorted(_collection_names), \
+                "Db collections don't match expectations." \
+                "Prolly a residue db or missing a migration."
     finally:
         # Close/clear the sync client not to leave
         # the connection needlessly open

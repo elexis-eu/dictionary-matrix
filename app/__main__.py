@@ -9,7 +9,7 @@ from app import app, log, settings  # noqa: E402
 
 
 @click.command(help='Run: `uvicorn --reload=True --log-level=debug app:app`')
-def debug():
+def develop():
     uvicorn.run('app:app', reload=True, log_level='debug')
 
 
@@ -37,6 +37,6 @@ def deploy():
 
 if __name__ == '__main__':
     main = click.group()(lambda: None)
-    main.add_command(debug)
+    main.add_command(develop)
     main.add_command(deploy)
     main()

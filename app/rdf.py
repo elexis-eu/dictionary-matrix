@@ -14,7 +14,6 @@ from rdflib.namespace import DC, DCTERMS, RDF, SKOS, XMLNS
 from .models import Entry, JsonDictionary, LexicalEntry
 from .models_helpers import lexinfo_pos_to_ud, to_iso639, ud_to_lexinfo_pos
 from .settings import settings
-from .utils import enum_values
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +91,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
         log.debug('Building @rdf:about map')
         return {el.attrib[RDF_ABOUT]: el
                 for el in root.xpath('.//*[@rdf:about]',
-                                     namespaces={'rdf': RDF},
+                                     namespaces={'rdf': str(RDF)},
                                      smart_strings=False)}
 
     def _maybe_resolve_resource(el: ET.ElementBase) -> ET.ElementBase:
@@ -123,7 +122,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     '''))
     # TODO: add check for canonicalForm.writtenRep, partOfSpeech, definition
     # https://stackoverflow.com/questions/105613/can-xpath-return-only-nodes-that-have-a-child-of-x
-    ENTRY_TAGS = enum_values(LexicalEntry)
+    ENTRY_TAGS = LexicalEntry.values()
     get_entry = resolve_resource(XPath(f'''
         .//*[contains("|{'|'.join(ENTRY_TAGS)}|",
                       concat("|", local-name(), "|"))]
@@ -152,16 +151,16 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     def xml_lang(
             el: ET.ElementBase, *,
             _get_lang=XPath('ancestor-or-self::*[@xml:lang][1]/@xml:lang',
-                            namespaces={'xml': XMLNS})) -> str:
+                            namespaces={'xml': str(XMLNS)})) -> str:
         lang = next(iter(_get_lang(el)), None)
-        lang = to_iso639(lang)
         if lang:
-            seen_languages.add(lang)
+            lang = to_iso639(lang)
+            targetLanguages.add(lang)
         return lang
 
     def infer_lang_from_entries() -> Optional[str]:
         counter: Counter = Counter(root.xpath('.//@xml:lang',
-                                              namespaces={'xml': XMLNS},
+                                              namespaces={'xml': str(XMLNS)},
                                               smart_strings=False))
         return counter.most_common(1)[0][0] if counter else None
 
@@ -182,7 +181,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
             return [v for v in (remove_empty_keys(v) for v in obj) if v]
         return obj
 
-    seen_languages = set()
+    targetLanguages = set()
     errors: List[str] = []
     lexicon_obj: dict = {
         'entries': [],
@@ -208,7 +207,6 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
                 break
     if not lexicon_lang:
         lexicon_lang = infer_lang_from_entries()
-    lexicon_obj['language'] = lexicon_lang
     assert lexicon_lang, \
         'Need language for the dictionary. Either via lime:language, xml:lang, or language='
 
@@ -232,6 +230,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
                     lang = to_iso639(text_content(lang_el))
                     break
             entry_lang = lang
+            entry_obj['language'] = entry_lang or lexicon_lang
 
             # Canonical form / lemma / headword
             for form_el in get_canonicalForm(entry_el):
@@ -311,94 +310,87 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     if not lexicon_obj['entries']:
         raise ValueError('\n'.join(errors or ['No valid entries found']))
 
-    # Set target languages
-    seen_languages.discard(lexicon_lang)
-    if seen_languages:
-        lexicon_obj['targetLanguage'] = list(seen_languages)
+    # Set languages
+    lexicon_obj['meta']['sourceLanguage'] = lexicon_lang
+    targetLanguages.discard(lexicon_lang)
+    if targetLanguages:
+        lexicon_obj['meta']['targetLanguage'] = list(targetLanguages)
 
     return lexicon_obj
 
 
-class EntryExport:
-    @staticmethod
-    def to_tei(entry: dict) -> str:
-        # TODO: rewrite as tei.tpl
-        # TODO: escape HTML
-        pos = entry['partOfSpeech']
-        lemmas = [f'<orth xml:lang="{lang}">{value}</orth>'
-                  for lang, values in entry['canonicalForm']['writtenRep'].items()
-                  for value in values]
+def entry_to_tei(entry: dict) -> str:
+    # TODO: rewrite as tei.tpl
+    # TODO: escape HTML
+    pos = entry['partOfSpeech']
+    lemmas = [f'<orth xml:lang="{lang}">{value}</orth>'
+              for lang, values in entry['canonicalForm']['writtenRep'].items()
+              for value in values]
 
-        def defns(sense):
-            return ''.join(f'<def xml:lang="{lang}">{value}</def>'
-                           for lang, value in sense['definition'].items())
-        senses = ['<sense n="{}">{}</sense>'.format(i, defns(sense))
-                  for i, sense in enumerate(entry['senses'], 1)]
-        xml = f'''\
+    def defns(sense):
+        return ''.join(f'<def xml:lang="{lang}">{value}</def>'
+                       for lang, value in sense['definition'].items())
+    senses = ['<sense n="{}">{}</sense>'.format(i, defns(sense))
+              for i, sense in enumerate(entry['senses'], 1)]
+    xml = f'''\
 <entry xml:id="{entry['_id']}">
 <form type="lemma">{''.join(lemmas)}</form>
 <gramGrp><pos norm="{pos}">{pos}</pos></gramGrp>
 {''.join(senses)}
 </entry>
 '''
-        return xml
+    return xml
 
-    @classmethod
-    def to_ontolex(cls, entry: dict) -> bytes:
-        obj = cls.to_jsonld(entry)
-        graph = Graph()
-        graph.parse(data=obj, format='json-ld')
-        return graph.serialize(format='turtle')
 
-    # TODO: Move @context to a remote, referenced resource
-    JSONLD_CONTEXT = {
-        'ontolex': ONTOLEX,
-        'lexinfo': LEXINFO,
-        'lime': LIME,
-        'skos': str(SKOS),
-        'canonicalForm': 'ontolex:canonicalForm',
-        'otherForm': 'ontolex:otherForm',
-        'writtenRep': {
-            '@id': 'ontolex:writtenRep',
-            '@container': '@language',
-        },
-        'phoneticRep': {
-            '@id': 'ontolex:phoneticRep',
-            '@container': '@language',
-        },
-        'senses': {
-            '@id': 'ontolex:sense',
-            '@container': '@set',
-        },
-        'definition': {
-            '@id': 'skos:definition',
-            '@container': '@language',
-        },
-        'reference': {
-            '@id': 'ontolex:reference',
-            '@type': '@id',
-            '@container': '@set',
-        },
-        'partOfSpeech': {
-            '@id': 'lexinfo:partOfSpeech',
-            '@type': '@id',
-        },
-        'usage': 'ontolex:usage',
-        'morphologicalPattern': 'ontolex:morphologicalPattern',
-    }
+def entry_to_ontolex(entry: dict) -> bytes:
+    graph = Graph()
+    graph.parse(data=entry_to_jsonld(entry), format='json-ld')
+    return graph.serialize(format='turtle')
 
-    @classmethod
-    def to_jsonld(cls, entry: dict) -> bytes:
-        obj = cls._to_jsonld(entry)
-        return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))
 
-    @classmethod
-    def _to_jsonld(cls, entry: dict) -> dict:
-        obj = entry.copy()
-        # TODO: dcterms needed for separate entries?
-        # TODO: Make @context a href
-        obj['@context'] = cls.JSONLD_CONTEXT
-        obj['@id'] = f'elexis:{obj.pop("_id")}'
-        obj['@type'] = ONTOLEX + obj['@type']
-        obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
-        return obj
+# TODO: dcterms needed?
+JSONLD_CONTEXT = {
+    'ontolex': ONTOLEX,
+    'lexinfo': LEXINFO,
+    'lime': LIME,
+    'skos': str(SKOS),
+    'canonicalForm': 'ontolex:canonicalForm',
+    'otherForm': 'ontolex:otherForm',
+    'writtenRep': {
+        '@id': 'ontolex:writtenRep',
+        '@container': '@language',
+    },
+    'phoneticRep': {
+        '@id': 'ontolex:phoneticRep',
+        '@container': '@language',
+    },
+    'senses': {
+        '@id': 'ontolex:sense',
+        '@container': '@set',
+    },
+    'definition': {
+        '@id': 'skos:definition',
+        '@container': '@language',
+    },
+    'reference': {
+        '@id': 'ontolex:reference',
+        '@type': '@id',
+        '@container': '@set',
+    },
+    'partOfSpeech': {
+        '@id': 'lexinfo:partOfSpeech',
+        '@type': '@id',
+    },
+    'usage': 'ontolex:usage',
+    'morphologicalPattern': 'ontolex:morphologicalPattern',
+}
+
+
+def entry_to_jsonld(entry: dict) -> bytes:
+    obj = entry.copy()
+    # TODO: Make @context a href
+    obj['@context'] = JSONLD_CONTEXT
+    obj['@id'] = f'elexis:{obj.pop("_id")}'
+    obj['@type'] = ONTOLEX + obj['@type']
+    obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
+    return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))

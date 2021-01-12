@@ -1,33 +1,53 @@
 from __future__ import annotations
 
+import sys
 from enum import Enum, auto
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, TYPE_CHECKING, Union
 
-from pydantic import BaseModel, Field, HttpUrl, constr
-
-from app.utils import _AutoEnum
-
-
-class ISO639Language(constr(min_length=2, max_length=3)):  # type: ignore
-    pass
+import orjson
+from pydantic import (
+    AnyHttpUrl, BaseModel as _BaseModel, Field, FilePath, HttpUrl,
+    conlist, constr, root_validator, validator,
+)
 
 
-class RdfFormats(str, Enum):
+class _AutoStrEnum(str, Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
+    @staticmethod
+    def _auto(n):
+        return [auto() for _ in range(n)]
+
+    @classmethod
+    def values(cls):
+        return [i.value for i in cls]
+
+
+class BaseModel(_BaseModel):
+    """Our Pydantic model base."""
+    class Config:
+        # Use enum values rather than objects for model.dict()
+        use_enum_values = True
+        # Perform validation on assignment to attributes
+        validate_assignment = True
+        # Populate aliased fields either by attribute name or by alias
+        allow_population_by_field_name = True
+        # Override for decoding JSON
+        json_loads = orjson.loads
+
+
+class RdfFormats(_AutoStrEnum):
     TEI = 'tei'
     JSON = 'json'
     ONTOLEX = 'ontolex'
 
 
-class ReleasePolicy(str, _AutoEnum):
-    (
-        PUBLIC,
-        NONCOMMERCIAL,
-        RESEARCH,
-        PRIVATE
-    ) = _AutoEnum._auto_range(4)
+class ReleasePolicy(_AutoStrEnum):
+    PUBLIC, NONCOMMERCIAL, RESEARCH, PRIVATE = _AutoStrEnum._auto(4)
 
 
-class Genre(str, _AutoEnum):
+class Genre(_AutoStrEnum):
     # TODO: Find a way to document these
     gen = auto()  # [General dictionaries] are dictionaries that document contemporary vocabulary and are intended for everyday reference by native and fluent speakers.  # noqa: E501
     lrn = auto()  # [Learners' dictionaries] are intended for people who are learning the language as a second language.  # noqa: E501
@@ -39,7 +59,7 @@ class Genre(str, _AutoEnum):
     # por = auto()  # [Portals and aggregators] are websites that provide access to more than one dictionary and allow you to search them all at once.  # noqa: E501
 
 
-class PartOfSpeech(str, _AutoEnum):
+class PartOfSpeech(_AutoStrEnum):
     """
     From: https://universaldependencies.org/u/pos/
     """
@@ -61,17 +81,21 @@ class PartOfSpeech(str, _AutoEnum):
         SYM,  # symbol
         VERB,  # verb
         X,  # other
-    ) = _AutoEnum._auto_range(17)
+    ) = _AutoStrEnum._auto(17)
 
 
 class Dictionaries(BaseModel):
     dictionaries: List[str]
 
 
+class Language(constr(regex=r'[a-z]{2,3}')):  # type: ignore
+    """ISO 639 2-alpha or 3-alpha language string"""
+
+
 class Dictionary(BaseModel):
     release: ReleasePolicy
-    sourceLanguage: ISO639Language
-    targetLanguage: Optional[List[ISO639Language]]
+    sourceLanguage: Language
+    targetLanguage: Optional[List[Language]]
     genre: Optional[List[Genre]]
     license: Optional[HttpUrl]
     title: Optional[str]
@@ -83,30 +107,36 @@ class Lemma(BaseModel):
     lemma: str
     id: str
     partOfSpeech: PartOfSpeech
-    language: Optional[str]
+    language: Language
     formats: Optional[List[RdfFormats]]
 
 
-_LangValue = Dict[ISO639Language, str]
-_LangValues = Dict[ISO639Language, List[str]]
+_LangValue = Dict[Language, str]
+_LangValues = Dict[Language, List[str]]
 
 
 class _CanonicalForm(BaseModel):
     writtenRep: Optional[_LangValues]
     phoneticRep: Optional[_LangValues]
 
+    @root_validator
+    def check_valid(cls, values):
+        assert values['writtenRep'] or values['phoneticRep']
+        return values
+
 
 class _Sense(BaseModel):
     definition: Optional[_LangValue]
     reference: Optional[List[HttpUrl]]
-    # TODO: validate: `definition or reference`
+
+    @root_validator
+    def check_valid(cls, values):
+        assert values['definition'] or values['reference']
+        return values
 
 
-class LexicalEntry(_AutoEnum):
-    LexicalEntry = auto()
-    Word = auto()
-    Affix = auto()
-    MultiWordExpression = auto()
+class LexicalEntry(_AutoStrEnum):
+    LexicalEntry, Word, Affix, MultiWordExpression = _AutoStrEnum._auto(4)
 
 
 class Entry(BaseModel):
@@ -116,9 +146,9 @@ class Entry(BaseModel):
 
     canonicalForm: _CanonicalForm
     partOfSpeech: PartOfSpeech
-    senses: List[_Sense]
+    senses: conlist(_Sense, min_items=1)  # type: ignore
 
-    language: Optional[str]
+    language: Optional[Language]
     otherForm: Optional[List[_CanonicalForm]]
     morphologicalPattern: Optional[List[str]]
     etymology: Optional[List[str]]
@@ -126,7 +156,45 @@ class Entry(BaseModel):
 
     # TODO: Private header last-modified
 
+    @root_validator
+    def check_minimal_requirements(cls, values):
+        assert values['canonicalForm'].writtenRep
+        return values
+
 
 class JsonDictionary(BaseModel):
     meta: Dictionary
-    entries: List[Entry]
+    entries: conlist(Entry, min_items=1)  # type: ignore
+
+
+class JobStatus(_AutoStrEnum):
+    SCHEDULED, ERROR, DONE = _AutoStrEnum._auto(3)
+
+
+class _ImportMeta(BaseModel):
+    release: ReleasePolicy
+    sourceLanguage: Optional[Language]
+    genre: Optional[List[Genre]]
+    api_key: str
+
+
+# Permit 'localhost' in tests, but not in production
+_HttpUrl = HttpUrl
+if not TYPE_CHECKING and 'pytest' in sys.modules:
+    _HttpUrl = AnyHttpUrl
+
+
+class ImportJob(BaseModel):
+    url: Optional[_HttpUrl]
+    file: Optional[FilePath]
+    state: JobStatus
+    meta: _ImportMeta
+
+    @validator('file')
+    def cast_path_to_str_for_db(cls, v):
+        return str(v) if v else None
+
+    @root_validator
+    def check_valid(cls, values):
+        assert values['url'] or values['file']
+        return values

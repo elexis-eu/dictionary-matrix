@@ -1,9 +1,9 @@
 import logging
+import multiprocessing as mp
 import os
 import shutil
 import traceback
 from datetime import datetime
-from concurrent.futures.process import ProcessPoolExecutor
 from http import HTTPStatus
 from pathlib import Path
 from queue import SimpleQueue
@@ -15,11 +15,10 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import AnyHttpUrl
 
-from .db import _DbType, get_db, get_db_sync, reset_db_client
-from .models import Genre, ISO639Language, ReleasePolicy
+from .db import _DbType, get_db, get_db_sync, reset_db_client, safe_path
+from .models import Genre, ImportJob, JobStatus, Language, ReleasePolicy
 from .rdf import file_to_obj
 from .settings import settings
-from .utils import _AutoEnum, enum_values, safe_path
 
 
 log = logging.getLogger(__name__)
@@ -27,10 +26,6 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 import_queue: SimpleQueue = SimpleQueue()
-
-
-class JobStatus(str, _AutoEnum):
-    SCHEDULED, ERROR, DONE = _AutoEnum._auto_range(3)
 
 
 def _get_upload_filename(username, filename) -> str:
@@ -60,17 +55,17 @@ async def dict_import(
             ..., description='API key of the user uploading the dictionary.'),
         release: ReleasePolicy = Query(
             ..., description='Dictionary release policy. '
-                             f'One of: {", ".join(enum_values(ReleasePolicy))}.',
+                             f'One of: {", ".join(ReleasePolicy.values())}.',
         ),
-        language: ISO639Language = Query(
+        sourceLanguage: Language = Query(
             None,
-            description='Main dictionary language in ISO639. '
+            description='Main dictionary language in ISO 639 2-alpha or 3-alpha. '
                         '<b>Required</b> if not specified in the file.',
         ),
         genre: List[Genre] = Query(
             None,
             description='Dictionary genre. '
-                        f'One or more of: {", ".join(enum_values(Genre))}.')
+                        f'One or more of: {", ".join(Genre.values())}.')
 ):
     if bool(url) == bool(file):
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
@@ -82,19 +77,21 @@ async def dict_import(
         upload_path = _get_upload_filename(api_key, file.filename)
         with open(upload_path, 'wb') as fd:
             shutil.copyfileobj(file.file, fd, 10_000_000)
-
-    job = {
-        'url': url,
-        'file': upload_path,
-        'state': JobStatus.SCHEDULED,
-        'meta': {
-            'release': release,
-            'language': language,
-            'genre': genre,
-            'api_key': api_key,
-        }
-    }
-    result = await db.import_jobs.insert_one(job)
+    try:
+        job = ImportJob(
+            url=url,
+            file=upload_path,
+            state=JobStatus.SCHEDULED,
+            meta=dict(
+                release=release,
+                sourceLanguage=sourceLanguage,
+                genre=genre,
+                api_key=api_key,
+            ))
+    except Exception as e:
+        log.exception('Invalid request params: %s', e)
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    result = await db.import_jobs.insert_one(job.dict())
     id = str(result.inserted_id)
     import_queue.put(id)
     return id
@@ -123,10 +120,10 @@ def _dict_import_worker(queue):
             # We process the document in a subprocess.
             # The malicious document may crash its process (lxml is C),
             # and we don't want that to affect the app, do we?
-            with ProcessPoolExecutor(max_workers=1,
-                                     initializer=reset_db_client) as executor:
-                executor.submit(_process_one_dict, id).result(
-                    timeout=settings.UPLOAD_TIMEOUT_SECONDS)
+            proc = mp.Process(target=_process_one_dict,
+                              args=(id,), daemon=True)
+            proc.start()
+            proc.join(timeout=settings.UPLOAD_TIMEOUT_SECONDS)
         except Exception:
             log.exception('Unexpected exception on %s:', id)
 
@@ -135,35 +132,35 @@ def _process_one_dict(id: str):
     id = ObjectId(id)
     log = logging.getLogger(__name__)
     log.debug('Start import job %s', id)
+    reset_db_client()
     with get_db_sync() as db:  # type: _DbType
         job = db.import_jobs.find_one({'_id': id})
-        assert job['state'] == JobStatus.SCHEDULED
-
-        url = job['url']
-        filename = job['file']
-        api_key = job['meta']['api_key']
-        language = job['meta']['language']
-
+        job = ImportJob(**job)
+        assert job.state == JobStatus.SCHEDULED
+        filename = job.file
         try:
-            if url and not filename:
-                log.debug('Download %s from %r', id, url)
-                filename = _get_upload_filename(api_key, url)
-                with httpx.stream("GET", url) as response:
+            # Download
+            if job.url and not filename:
+                log.debug('Download %s from %r', id, job.url)
+                filename = _get_upload_filename(job.meta.api_key, job.url)
+                with httpx.stream("GET", job.url) as response:
                     num_bytes_expected = int(response.headers["Content-Length"])
                     with open(filename, 'wb') as fd:
                         for chunk in response.iter_bytes():
                             fd.write(chunk)
                 assert response.num_bytes_downloaded == num_bytes_expected
-                job['file'] = filename
+                job.file = filename
 
             # Parse file
             assert filename
             log.debug('Parse %s from %r', id, filename)
-            obj = file_to_obj(filename, language)
+            obj = file_to_obj(filename, job.meta.sourceLanguage)
 
             # Transfer properties
             obj['_id'] = id
-            obj.update(job['meta'])
+            # We add job.meta properrties on base object, which in
+            # router /about get overriden by meta from file
+            obj.update(job.meta.dict(exclude_none=True, exclude_unset=True))
 
             # Extract entries separately, assign them dict id
             entries = obj.pop('entries')
@@ -180,6 +177,7 @@ def _process_one_dict(id: str):
             result = db.dicts.insert_one(obj)
             assert result.inserted_id == id
 
+            # Mark job done
             db.import_jobs.update_one(
                 {'_id': id}, {'$set': {'state': JobStatus.DONE}})
             if settings.UPLOAD_REMOVE_ON_SUCCESS:
