@@ -9,7 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, Response
 
 from .db import get_db
-from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech, RdfFormats
+from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech
 from .rdf import JSONLD_CONTEXT, entry_to_jsonld, entry_to_ontolex, entry_to_tei
 
 log = logging.getLogger(__name__)
@@ -91,10 +91,6 @@ async def list_dict(
         {'$project': dict(zip(Lemma.__fields__.keys(),
                               itertools.repeat(True)))},
     ]).to_list(None)
-    # Advertize available formats  # TODO drop since all are supported?
-    formats = RdfFormats.values()
-    for entry in entries:
-        entry['formats'] = formats
     return jsonable_encoder(entries, custom_encoder={ObjectId: str})
 
 
@@ -119,10 +115,6 @@ async def list_lemma(
         {'$project': dict(zip(Lemma.__fields__.keys(),
                               itertools.repeat(True)))},
     ]).to_list(None)
-    # Advertize available formats  # TODO drop since all are supported?
-    formats = RdfFormats.values()
-    for entry in entries:
-        entry['formats'] = formats
     return jsonable_encoder(entries, custom_encoder={ObjectId: str})
 
 
