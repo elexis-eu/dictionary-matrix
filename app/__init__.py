@@ -1,5 +1,6 @@
 import json
 import logging.config
+import os
 import traceback
 from http import HTTPStatus
 
@@ -44,6 +45,8 @@ app.add_middleware(SessionMiddleware,
 @app.on_event('startup')
 async def startup_event():
     log.info('App startup')
+    assert os.access(settings.UPLOAD_PATH, os.F_OK | os.W_OK | os.X_OK), \
+        'Need write access to configured UPLOAD_PATH'
     dispatch_migration()
 
 
