@@ -210,7 +210,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     # Get entries
     for entry_i, entry_el in enumerate(get_entry(lexicon_el)):
         entry_obj: dict = {
-            '@type': strip_ns(entry_el.tag),
+            'type': strip_ns(entry_el.tag),
             'canonicalForm': {
                 'writtenRep': defaultdict(list),
                 'phoneticRep': defaultdict(list),
@@ -339,7 +339,7 @@ def entry_to_tei(entry: dict) -> str:
     return xml
 
 
-def entry_to_ontolex(entry: dict) -> bytes:
+def entry_to_turtle(entry: dict) -> bytes:
     graph = Graph()
     graph.parse(data=entry_to_jsonld(entry), format='json-ld')
     return graph.serialize(format='turtle')
@@ -388,6 +388,6 @@ def entry_to_jsonld(entry: dict) -> bytes:
     # TODO: Make @context a href
     obj['@context'] = JSONLD_CONTEXT
     obj['@id'] = f'elexis:{obj.pop("_id")}'
-    obj['@type'] = ONTOLEX + obj['@type']
+    obj['@type'] = ONTOLEX + obj.pop('type')
     obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
     return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))

@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 import pytest
 
+from tests.test_rdf import assert_jsonld, assert_tei, assert_turtle
 
 pytestmark = pytest.mark.asyncio
 
@@ -51,15 +52,15 @@ async def entry_id(client, example_id):
 
 async def test_entry_tei(client, example_id, entry_id):
     response = await client.get(f'/tei/{example_id}/{entry_id}')
-    assert '<form type="lemma">' in response.text
+    assert 'text/xml' in response.headers['content-type']
+    assert_tei(response.text)
 
 
 async def test_entry_jsonld(client, example_id, entry_id):
     response = await client.get(f'/json/{example_id}/{entry_id}')
-    assert '@context' in response.json()
-    assert 'partOfSpeech' in response.json()
-    assert 'Link' in response.headers
+    assert 'jsonld' in response.headers['Link']
     assert 'application/ld+json' == response.headers['content-type']
+    assert_jsonld(response.json())
 
 
 async def test_jsonld_context(client):
@@ -70,7 +71,5 @@ async def test_jsonld_context(client):
 
 async def test_entry_turtle(client, example_id, entry_id):
     response = await client.get(f'/ontolex/{example_id}/{entry_id}')
-    assert '@prefix ' in response.text
-    assert 'lexinfo:partOfSpeech lexinfo:commonNoun' in response.text
-    # URIRefs are "somewhere in the cloud", not file-based
-    assert 'file:///' not in response.text
+    assert 'text/turtle' in response.headers['content-type']
+    assert_turtle(response.text)

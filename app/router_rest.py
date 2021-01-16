@@ -10,7 +10,7 @@ from fastapi.responses import ORJSONResponse, Response
 
 from .db import get_db
 from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech
-from .rdf import JSONLD_CONTEXT, entry_to_jsonld, entry_to_ontolex, entry_to_tei
+from .rdf import JSONLD_CONTEXT, entry_to_jsonld, entry_to_tei, entry_to_turtle
 
 log = logging.getLogger(__name__)
 
@@ -150,7 +150,7 @@ async def entry_ontolex(
         entry_id: str = Path(...),
 ):
     entry = await _get_entry(db, dictionary, entry_id)
-    return Response(entry_to_ontolex(entry),
+    return Response(entry_to_turtle(entry),
                     media_type='text/turtle')
 
 

@@ -14,8 +14,10 @@ from httpx import AsyncClient
 os.environ['MONGODB_DATABASE'] = 'dictionary_matrix_tests'
 logging.getLogger("asyncio").setLevel(logging.DEBUG)
 
-from app import app, settings  # noqa: E402
-from app.db import _db_client, get_db  # noqa: E402
+if True:  # Avoids flake8 raising E402
+    from app import app, settings
+    from app.db import _db_client, get_db
+    from app.rdf import file_to_obj
 
 
 EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "examples"
@@ -36,9 +38,21 @@ async def verify_upload(client, id):
         raise RuntimeError('Failed to load example')
 
 
-@pytest.fixture(params=EXAMPLE_FILES)
+@pytest.fixture(params=EXAMPLE_FILES, scope='session')
 def example_file(request):
     return str(EXAMPLE_DIR / request.param)
+
+
+@pytest.fixture(scope='session')
+def example_obj(example_file):
+    return file_to_obj(example_file)
+
+
+@pytest.fixture(params=[0, 1], scope='session')
+def entry_obj(example_obj, request):
+    entry = example_obj['entries'][request.param]
+    entry['_id'] = '111tests'  # Mock id as from db
+    return entry
 
 
 @pytest.fixture(scope='session')  # type: ignore  # Better support in PyCharm
