@@ -190,8 +190,8 @@ class ImportJob(BaseModel):
     state: JobStatus
     meta: _ImportMeta
 
-    @validator('file')
-    def cast_path_to_str_for_db(cls, v):
+    @validator('url', 'file')
+    def cast_to_str(cls, v):
         return str(v) if v else None
 
     @root_validator
