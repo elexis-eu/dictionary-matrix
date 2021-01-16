@@ -74,10 +74,7 @@ def _from_json(filename):
         obj = orjson.loads(fd.read())
     assert len(obj) == 1, "Expected one dictionary per JSON file"
     dict_id, obj = next(iter(obj.items()))
-    obj = JsonDictionary(**obj).dict()
-    # Don't store enums in db :F
-    for entry in obj['entries']:
-        entry['type'] = str(entry['type'])
+    obj = JsonDictionary(**obj).dict(exclude_none=True, exclude_unset=True)
     return obj
 
 
