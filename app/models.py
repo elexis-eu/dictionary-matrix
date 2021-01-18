@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from enum import Enum, auto
-from typing import Dict, List, Optional, TYPE_CHECKING, Union
+from typing import Dict, List, Optional, Union
 
 import orjson
 from pydantic import (
@@ -179,13 +179,11 @@ class _ImportMeta(BaseModel):
 
 
 # Permit 'localhost' in tests, but not in production
-_HttpUrl = HttpUrl
-if not TYPE_CHECKING and 'pytest' in sys.modules:
-    _HttpUrl = AnyHttpUrl
+Url = AnyHttpUrl if 'pytest' in sys.modules else HttpUrl
 
 
 class ImportJob(BaseModel):
-    url: Optional[_HttpUrl]
+    url: Optional[Url]
     file: Optional[FilePath]
     state: JobStatus
     meta: _ImportMeta

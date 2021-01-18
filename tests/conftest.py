@@ -85,7 +85,7 @@ async def example_id(client) -> AsyncGenerator[str, None]:
                     'genre': ['gen', 'spe'],
                 })
             assert response.status_code == HTTPStatus.CREATED
-            doc_id = response.json()
+            doc_id = response.text
 
         # Wait for it ...
         await verify_upload(client, doc_id)

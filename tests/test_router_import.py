@@ -17,7 +17,7 @@ async def test_from_file(client, example_file):
                 'api_key': 'test',
             })
     assert response.status_code == HTTPStatus.CREATED
-    await verify_upload(client, response.json())
+    await verify_upload(client, response.text)
 
 
 async def test_from_url(client, example_file, httpserver):
@@ -31,4 +31,4 @@ async def test_from_url(client, example_file, httpserver):
             'api_key': 'test',
         })
     assert response.status_code == HTTPStatus.CREATED
-    await verify_upload(client, response.json())
+    await verify_upload(client, response.text)

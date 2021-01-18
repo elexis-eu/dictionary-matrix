@@ -13,10 +13,10 @@ from typing import List, Optional
 import httpx
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from pydantic import AnyHttpUrl
+from fastapi.responses import PlainTextResponse
 
 from .db import _DbType, get_db, get_db_sync, reset_db_client, safe_path
-from .models import Genre, ImportJob, JobStatus, Language, ReleasePolicy
+from .models import Genre, ImportJob, JobStatus, Language, ReleasePolicy, Url
 from .rdf import file_to_obj
 from .settings import settings
 
@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 router = APIRouter()
 
-import_queue: SimpleQueue = SimpleQueue()
+_import_queue: SimpleQueue = SimpleQueue()
 
 
 def _get_upload_filename(username, filename) -> str:
@@ -37,19 +37,20 @@ def _get_upload_filename(username, filename) -> str:
 @router.post('/import',
              status_code=HTTPStatus.CREATED,
              response_model=str,
+             response_class=PlainTextResponse,
              summary='Import a new dictionary.',
              description='Import a new dictionary by direct file upload '
                          '<b>or</b> an URL from where the dictionary can be fetched.')
 async def dict_import(
-        db=Depends(get_db),  # TODO secure
-        url: Optional[AnyHttpUrl] = Query(
+        db: _DbType = Depends(get_db),  # TODO secure it
+        url: Optional[Url] = Query(
             None,
             description='URL of the dictionary to fetch and import. See <em>file=</em>.',
         ),
         file: Optional[UploadFile] = File(
             None,
             description='Dictionary file to import. In either OntoLex/Turtle, '
-                        'OntoLex/XML-RDF, or TEI/XML format.',
+                        'OntoLex/XML/RDF, TEI/XML, or JSON format.',
         ),
         api_key: str = Query(
             ..., description='API key of the user uploading the dictionary.'),
@@ -93,7 +94,7 @@ async def dict_import(
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     result = await db.import_jobs.insert_one(job.dict())
     id = str(result.inserted_id)
-    import_queue.put(id)
+    _import_queue.put(id)
     return id
 
 
@@ -108,7 +109,7 @@ def prepare_import_queue_and_start_workers():
     for i in range(settings.UPLOAD_N_WORKERS):
         Thread(
             target=_dict_import_worker,
-            args=(import_queue,),
+            args=(_import_queue,),
             name=f'process_upload_worker_{i}',
             daemon=True,  # join thread on process exit
         ).start()
