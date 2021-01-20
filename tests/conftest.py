@@ -16,7 +16,7 @@ logging.getLogger("asyncio").setLevel(logging.DEBUG)
 
 if True:  # Avoids flake8 raising E402
     from app import app, settings
-    from app.db import _db_client, get_db
+    from app.db import _db_client_sync, get_db_sync
     from app.rdf import file_to_obj
 
 
@@ -94,11 +94,10 @@ async def example_id(client) -> AsyncGenerator[str, None]:
         yield str(doc_id)
 
         # Clean up
-        _coro = get_db()
-        db = await _coro.__anext__()
-        result = await db.dicts.delete_one({'_id': ObjectId(doc_id)})
-        assert result.deleted_count == 1
+        with get_db_sync() as db:
+            result = db.dicts.delete_one({'_id': ObjectId(doc_id)})
+            assert result.deleted_count == 1
 
     finally:
         # Drop db
-        await _db_client().drop_database(settings.MONGODB_DATABASE)
+        _db_client_sync().drop_database(settings.MONGODB_DATABASE)
