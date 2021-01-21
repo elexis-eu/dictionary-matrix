@@ -35,6 +35,8 @@ class BaseModel(_BaseModel):
         allow_population_by_field_name = True
         # Override for decoding JSON
         json_loads = orjson.loads
+        # Allow declaring e.g. bson.ObectId
+        arbitrary_types_allowed = True
 
 
 class RdfFormats(_AutoStrEnum):

@@ -34,6 +34,9 @@ class _Settings(BaseSettings):
 
     DEPLOYMENT_CONFIG_FILE: str = str(_APP_PATH / 'gunicorn.py.conf')
 
+    LINKING_NAISC_URL: str = 'http://localhost:8034/naisc/'
+    LINKING_BABELNET_URL: str = 'https://babelnet.io/v5/'
+
     class Config:
         env_file = '.env'
         allow_mutation = False

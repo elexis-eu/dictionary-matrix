@@ -10,6 +10,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .db import _db_client, dispatch_migration
+from .linking.router import router as linking_router
 from .router_rest import router as rest_router
 from .router_import import router as import_router
 from .settings import settings
@@ -35,6 +36,7 @@ app = FastAPI(
 
 app.include_router(import_router)
 app.include_router(rest_router)
+app.include_router(linking_router)
 
 app.add_middleware(GZipMiddleware)
 app.add_middleware(SessionMiddleware,

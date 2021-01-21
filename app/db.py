@@ -40,6 +40,7 @@ class _DbType(pymongo.database.Database):
     dicts: pymongo.collection.Collection
     entry: pymongo.collection.Collection
     import_jobs: pymongo.collection.Collection
+    linking_jobs: pymongo.collection.Collection
 
 
 _collection_names = [k for k, v in _DbType.__annotations__.items()
