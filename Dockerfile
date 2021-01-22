@@ -5,7 +5,7 @@ ENV PIP_NO_CACHE_DIR=1
 
 COPY /requirements.txt /
 RUN set -eux; \
-	pip install -r requirements.txt
+    pip install -r requirements.txt
 COPY /app /app/app
 RUN set -eux; \
     mkdir /uploads; \
