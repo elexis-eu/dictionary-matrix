@@ -6,9 +6,8 @@ from threading import Thread
 from typing import List
 
 from bson import ObjectId
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, constr
 
 from .models import LinkingJob, LinkingOneResult, LinkingStatus
 from .ops import _linking_task_status_checker, submit_linking_job
@@ -19,8 +18,8 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix='/linking')
 
-_linking_queue = SimpleQueue()
-_cv: threading.Condition = None
+_linking_queue: SimpleQueue = SimpleQueue()
+_cv: threading.Condition = None  # type: ignore
 
 
 @router.post('/submit',
@@ -49,13 +48,10 @@ def init_linking_task_status_checker():
     Thread(
         target=_linking_task_status_checker,
         args=(_linking_queue, _cv),
-        name=f'linking_task_status_checker',
+        name='linking_task_status_checker',
         daemon=True,  # join thread on process exit
     ).start()
 
-
-class Str(BaseModel):
-    __root__: str
 
 @router.post('/status',
              status_code=HTTPStatus.OK,
@@ -86,5 +82,3 @@ async def result(
     if not job or not job['result']:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     return job['result']
-
-

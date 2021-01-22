@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import threading
-import time
 import traceback
 from functools import wraps
 from queue import Empty as QueueEmpty
@@ -13,12 +12,12 @@ from bson import ObjectId
 
 from .models import (
     LinkingJob, LinkingJobPrivate, LinkingJobStatus, LinkingOneResult,
-    LinkingSource, LinkingStatus,
+    LinkingStatus,
 )
 from ..settings import settings
-from ..db import _DbType, _db_client, get_db, get_db_sync, reset_db_client
+from ..db import _DbType, get_db_sync, reset_db_client
 
-# log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 _BABELNET_ID = 'babelnet'
 
@@ -26,16 +25,42 @@ _BABELNET_ID = 'babelnet'
 def coroutine_in_new_thread(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # reset_db_client()
+        reset_db_client()
         asyncio.set_event_loop(asyncio.new_event_loop())
         return asyncio.get_event_loop().run_until_complete(func(*args, **kwargs))
     return wrapper
 
 
-@coroutine_in_new_thread
+@coroutine_in_new_thread  # noqa: C901
 async def _linking_task_status_checker(queue, cv: threading.Condition):
-    jobs = []
-    log = logging.getLogger(__name__)
+    jobs: List[LinkingJobPrivate] = []
+
+    async def check_one(job):
+        new_status = LinkingStatus(state='FAILED', message='')
+        result = None
+        try:
+            new_status = await upstream_status(job)
+            if new_status.state == LinkingJobStatus.PROCESSING:
+                return
+            assert new_status.state in (LinkingJobStatus.COMPLETED,
+                                        LinkingJobStatus.FAILED)
+            log.debug('Linking task status checker thread finished: '
+                      'job %r (task %r) state %s, message: %s',
+                      job.id, job.remote_task_id, new_status.state, new_status.message)
+            result = await upstream_result(job)
+        except Exception:
+            log.exception('Unexpected error for linking task %s', job)
+            new_status.state = LinkingJobStatus.FAILED
+            new_status.message = traceback.format_exc()
+
+        jobs.remove(job)
+        job_obj = new_status.dict()
+        if result:
+            job_obj['result'] = result
+        with get_db_sync() as db:  # type: _DbType
+            db.linking_jobs.update_one(
+                {'_id': job.id}, {'$set': job_obj})
+
     while True:
         log.debug('Linking task status checker thread wakeup ...')
 
@@ -46,41 +71,14 @@ async def _linking_task_status_checker(queue, cv: threading.Condition):
             except QueueEmpty:
                 break
             log.debug('Linking task status checker thread got new job %r', id)
-            job = None
-            while not job:
-                with get_db_sync() as db:
+            while True:
+                with get_db_sync() as db:  # type: _DbType
                     job = db.linking_jobs.find_one({'_id': ObjectId(id)})
+                    if job:
+                        break
             job = LinkingJobPrivate(**job, id=job['_id'])
             assert job.state == LinkingJobStatus.PROCESSING
             jobs.append(job)
-
-        async def check_one(job):
-            try:
-                new_status = await upstream_status(job)
-            except Exception:
-                log.exception('Unexpected error for linking task %s', job)
-                return
-            if new_status.state in (LinkingJobStatus.COMPLETED,
-                                    LinkingJobStatus.FAILED):
-                nonlocal db
-                log.debug('Linking task status checker thread finished: '
-                          'job %r (task %r) state %s, message: %s',
-                          job.id, job.remote_task_id, new_status.state, new_status.message)
-                try:
-                    result = await upstream_result(job)
-                except Exception:
-                    log.exception('...')     # TODO
-                    new_status.state = LinkingJobStatus.FAILED
-                    new_status.message = traceback.format_exc()
-                else:
-                    with get_db_sync() as db:
-                        db.linking_jobs.update_one(
-                            {'_id': job.id}, {'$set': {'result': result}})
-
-                with get_db_sync() as db:
-                    db.linking_jobs.update_one(
-                        {'_id': job.id}, {'$set': new_status.dict()})
-                jobs.remove(job)
 
         try:
             log.debug('Linking task status checker thread checking %d tasks', len(jobs))
@@ -155,29 +153,7 @@ async def submit_linking_job(db: _DbType, job: LinkingJob, SITE_URL: str):
     # Fetch linked entries to obtain a local copy
     if submit_job.source.endpoint != SITE_URL:
         assert False, 'Need source entries on _this_ endpoint'
-        Thread(
-            target=_fetch_entries,
-            args=(job.source,),
-            daemon=True,
-        ).start()
     if submit_job.target.endpoint != SITE_URL and not is_babelnet:
         assert False, 'Need target entries on _this_ endpoint'
-        Thread(
-            target=_fetch_entries,
-            args=(job.target,),
-            daemon=True,
-        ).start()
 
     return str(result.inserted_id)
-
-
-def _fetch_entries(source: LinkingSource):
-    headers = {'X-API-Key': source.apiKey} if source.apiKey else {}
-    with httpx.Client(headers=headers) as client:
-        entries = source.entries or []
-        if not entries:
-            response = client.get(urljoin(source.endpoint, f'/list/{source.id}'))
-            entries = response.json()  # type: List[Lemma]
-        for entry in entries:
-            ...  # TODO
-

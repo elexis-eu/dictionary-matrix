@@ -185,7 +185,7 @@ Url = AnyHttpUrl if 'pytest' in sys.modules else HttpUrl
 
 
 class ImportJob(BaseModel):
-    url: Optional[Url]
+    url: Optional[Url]  # type: ignore
     file: Optional[FilePath]
     state: JobStatus
     meta: _ImportMeta
