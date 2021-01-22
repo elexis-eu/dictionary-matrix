@@ -2,8 +2,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseSettings
-
+from pydantic import AnyHttpUrl, AnyUrl, BaseSettings, DirectoryPath, FilePath, validator
 
 _APP_PATH = Path(__file__).resolve().parent
 
@@ -19,27 +18,31 @@ class _Settings(BaseSettings):
     SESSION_COOKIE_SECRET_KEY: str = 'changeme secret'
     SESSION_COOKIE_MAX_AGE: int = 24 * 60 * 60
 
-    MONGODB_CONNECTION_STRING: str = 'mongodb://localhost:27017/?connectTimeoutMS=3000'
+    MONGODB_CONNECTION_STRING: AnyUrl = 'mongodb://localhost:27017/?connectTimeoutMS=3000'  # type: ignore  # noqa: E501
     MONGODB_DATABASE: str = 'dictionary_matrix'
 
-    UPLOAD_PATH: str = str(Path(tempfile.gettempdir()) / "dictionary-matrix-uploads")
+    UPLOAD_PATH: DirectoryPath = str(Path(tempfile.gettempdir()) / "dictionary-matrix-uploads")  # type: ignore  # noqa: E501
     UPLOAD_N_WORKERS: int = 2
     UPLOAD_TIMEOUT_SECONDS: float = 60 * 10
     UPLOAD_REMOVE_ON_SUCCESS: bool = True
     UPLOAD_REMOVE_ON_FAILURE: bool = True
 
-    LOGGING_CONFIG_FILE: str = str(_APP_PATH / 'logging.dictConfig.json')
+    LOGGING_CONFIG_FILE: FilePath = str(_APP_PATH / 'logging.dictConfig.json')  # type: ignore
     LOG_LEVEL: Optional[str] = None
-    LOG_FILE: Optional[str] = None
+    LOG_FILE: Optional[FilePath] = None
 
-    DEPLOYMENT_CONFIG_FILE: str = str(_APP_PATH / 'gunicorn.py.conf')
+    DEPLOYMENT_CONFIG_FILE: FilePath = str(_APP_PATH / 'gunicorn.py.conf')  # type: ignore
 
-    LINKING_NAISC_URL: str = 'http://localhost:8034/naisc/'
-    LINKING_BABELNET_URL: str = 'https://babelnet.io/v5/'
+    LINKING_NAISC_URL: AnyHttpUrl = 'http://localhost:8034/naisc/'  # type: ignore
+    LINKING_BABELNET_URL: AnyHttpUrl = 'https://babelnet.io/v5/'    # type: ignore
 
     class Config:
         env_file = '.env'
         allow_mutation = False
+
+    @validator('*')
+    def ensure_urls_and_paths_are_str(cls, v: object):
+        return str(v) if isinstance(v, (AnyUrl, Path)) else v
 
 
 settings = _Settings()
