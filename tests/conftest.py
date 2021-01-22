@@ -16,7 +16,7 @@ logging.getLogger("asyncio").setLevel(logging.DEBUG)
 
 if True:  # Avoids flake8 raising E402
     from app import app, settings
-    from app.db import _DbType, _db_client_sync, get_db_sync
+    from app.db import _db_client_sync, get_db_sync
     from app.rdf import file_to_obj
 
 
@@ -94,7 +94,7 @@ async def example_id(client) -> AsyncGenerator[str, None]:
         yield str(doc_id)
 
         # Clean up
-        with get_db_sync() as db:  # type: _DbType
+        with get_db_sync() as db:
             result = db.dicts.delete_one({'_id': ObjectId(doc_id)})
             assert result.deleted_count == 1
 

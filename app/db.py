@@ -1,9 +1,8 @@
 import logging
 import os
 import re
-from contextlib import contextmanager
 from functools import lru_cache
-from typing import AsyncGenerator, ContextManager
+from typing import AsyncGenerator
 
 import pymongo.collection
 import pymongo.database
@@ -55,16 +54,23 @@ async def get_db() -> AsyncGenerator[_DbType, None]:
             yield db
 
 
-@contextmanager  # type: ignore
-def get_db_sync() -> ContextManager[_DbType]:
+class get_db_sync:
     """
     Synchronous database client for use in subprocess/commands
     w/o event loop frivolity. Used as a context manager.
     """
-    with _db_client_sync().start_session() as session:
-        with session.start_transaction():
-            db = session.client[settings.MONGODB_DATABASE]
-            yield db
+    # Can use simple contextlib.contextmanager once this is fixed:
+    # https://youtrack.jetbrains.com/issue/PY-36444
+    def __enter__(self) -> _DbType:
+        self._session = session = _db_client_sync().start_session()
+        self._transaction = transaction = session.start_transaction()
+        session.__enter__()
+        transaction.__enter__()
+        return session.client[settings.MONGODB_DATABASE]
+
+    def __exit__(self, *args, **kwargs):
+        self._transaction.__exit__(*args, **kwargs)
+        self._session.__exit__(*args, **kwargs)
 
 
 def safe_path(part):
@@ -81,7 +87,7 @@ def dispatch_migration():
                                        f'-{settings.MONGODB_DATABASE}.lock'))
     try:
         with FileLock(lock_file), \
-                get_db_sync() as db:  # type: _DbType
+                get_db_sync() as db:
             if not db.list_collection_names():
                 return _migration_v0(db)
             ...

@@ -57,7 +57,7 @@ async def _linking_task_status_checker(queue, cv: threading.Condition):
         job_obj = new_status.dict()
         if result:
             job_obj['result'] = result
-        with get_db_sync() as db:  # type: _DbType
+        with get_db_sync() as db:
             db.linking_jobs.update_one(
                 {'_id': job.id}, {'$set': job_obj})
 
@@ -72,7 +72,7 @@ async def _linking_task_status_checker(queue, cv: threading.Condition):
                 break
             log.debug('Linking task status checker thread got new job %r', id)
             while True:
-                with get_db_sync() as db:  # type: _DbType
+                with get_db_sync() as db:
                     job = db.linking_jobs.find_one({'_id': ObjectId(id)})
                     if job:
                         break

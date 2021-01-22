@@ -134,7 +134,7 @@ def _process_one_dict(id: str):
     log = logging.getLogger(__name__)
     log.debug('Start import job %s', id)
     reset_db_client()
-    with get_db_sync() as db:  # type: _DbType
+    with get_db_sync() as db:
         job = db.import_jobs.find_one({'_id': id})
         job = ImportJob(**job)
         assert job.state == JobStatus.SCHEDULED
