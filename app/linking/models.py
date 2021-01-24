@@ -50,10 +50,10 @@ class LinkingOneResult(BaseModel):
 
 
 class LinkingJobPrivate(LinkingJob, LinkingStatus):
-    remote_task_id: str
-    service_url: Url
-    id: Optional[ObjectId] = None
-    result: Optional[List[LinkingOneResult]] = None
+    remote_task_id: str = ''
+    service_url: Url = ''
+    id: ObjectId
+    result: Optional[List[LinkingOneResult]]
 
     @validator('service_url')
     def cast_to_str(cls, v):

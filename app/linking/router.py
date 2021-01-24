@@ -1,5 +1,5 @@
 import logging
-import threading
+import multiprocessing as mp
 from http import HTTPStatus
 from queue import SimpleQueue
 from threading import Thread
@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from .models import LinkingJob, LinkingOneResult, LinkingStatus
-from .ops import _linking_task_status_checker, submit_linking_job
+from .ops import process_linking_job
 from ..db import _DbType, get_db
 
 
@@ -19,7 +19,6 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix='/linking')
 
 _linking_queue: SimpleQueue = SimpleQueue()
-_cv: threading.Condition = None  # type: ignore
 
 
 @router.post('/submit',
@@ -33,24 +32,45 @@ async def submit(
         db: _DbType = Depends(get_db),
 ):
     SITE_URL = str(request.url.replace(path='/', query='', fragment=''))
-    task_id = await submit_linking_job(db, job, SITE_URL)
-    _linking_queue.put(task_id)
-    with _cv:
-        _cv.notify()
-    return task_id
+    # Set endpoints to None for local dicts
+    if job.source.endpoint == SITE_URL:
+        job.source.endpoint = None
+    if job.target.endpoint == SITE_URL:
+        job.target.endpoint = None
+
+    result = await db.linking_jobs.insert_one(job.dict(exclude_unset=True, exclude_none=True))
+    job_id = str(result.inserted_id)
+    _linking_queue.put(job_id)
+    return job_id
 
 
 @router.on_event('startup')
-def init_linking_task_status_checker():
-    log.info('Init linking task status checker thread')
-    global _cv
-    _cv = threading.Condition()
+def init_linking_task_worker():
+    log.info('Init linking task worker thread')
     Thread(
-        target=_linking_task_status_checker,
-        args=(_linking_queue, _cv),
-        name='linking_task_status_checker',
+        target=_linking_worker,
+        args=(_linking_queue,),
+        name='linking_task_worker',
         daemon=True,  # join thread on process exit
     ).start()
+
+
+def _linking_worker(queue):
+    processes = []
+    for id in iter(queue.get, None):  # type: str
+        proc = mp.Process(
+            target=process_linking_job,
+            args=(id,),
+            name=f'linking_task_worker_{id}',
+            daemon=True,  # join on process exit
+        )
+        proc.start()
+        processes.append(proc)
+        # Reap dead children
+        for proc in list(processes):
+            if not proc.is_alive():
+                proc.join()
+                processes.remove(proc)
 
 
 @router.post('/status',

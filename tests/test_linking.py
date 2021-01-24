@@ -47,14 +47,14 @@ async def test_linking(client, example_id, monkeypatch, httpserver):
     # Assume the other thread hadn't had time to process the request ...
     response = await client.post('/linking/status', content=task_id)
     assert not response.is_error, response.json()
-    assert response.json()['state'] == 'PROCESSING'
+    assert response.json()['state'] == 'PROCESSING', response.json()
 
     # ... but by now it did.
     time.sleep(.1)
     response = await client.post('/linking/status', content=task_id)
     assert not response.is_error, response.json()
-    assert response.json()['state'] == 'COMPLETED'
+    assert response.json()['state'] == 'COMPLETED', response.json()
 
     response = await client.post('/linking/result', content=task_id)
     assert not response.is_error, response.json()
-    assert response.json() == LINKING_RESULT
+    assert response.json() == LINKING_RESULT, response.json()
