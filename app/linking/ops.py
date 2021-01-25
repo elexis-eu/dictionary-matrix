@@ -1,6 +1,8 @@
 import logging
+import os
 import time
 import traceback
+from tempfile import NamedTemporaryFile
 from typing import List
 from urllib.parse import urljoin
 
@@ -9,8 +11,9 @@ from bson import ObjectId
 
 from .models import (
     LinkingJob, LinkingJobPrivate, LinkingJobStatus, LinkingOneResult,
-    LinkingStatus,
+    LinkingSource, LinkingStatus,
 )
+from ..rdf import file_to_obj
 from ..settings import settings
 from ..db import get_db_sync, reset_db_client
 
@@ -77,11 +80,11 @@ def process_linking_job(id: str):  # noqa: C901
                 assert db.dicts.find_one({'_id': ObjectId(job.target.id)}), \
                     f"Dictionary {job.target.id!r} not found here"
 
-        # TODO: Fetch linked entries to obtain a local copy
+        # Fetch linked entries to obtain a local copy
         if job.source.endpoint:
-            assert False, 'Need source entries on _this_ endpoint'
+            job.source = _get_entries(job.source)
         if job.target.endpoint and not is_babelnet:
-            assert False, 'Need target entries on _this_ endpoint'
+            job.target = _get_entries(job.target)
 
         # Submit task to the remote linking service
         job.remote_task_id = remote_task_id = _upstream_submit(service_url, job)
@@ -116,3 +119,99 @@ def process_linking_job(id: str):  # noqa: C901
                               result=result,
                               service_url=service_url,
                               remote_task_id=remote_task_id)})
+
+
+def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
+    def response_to_entry_obj(fmt: str, response: httpx.Response):
+        if fmt == 'json':
+            text = f'''\
+                {{"{our_dict_id}": {{
+                    "meta": {{
+                        "release": "PRIVATE",
+                        "sourceLanguage": "xx"
+                    }},
+                    "entries": [
+                        {response.text}
+                    ]
+                }} }}'''
+        elif fmt == 'ontolex':
+            text = response.text  # Already valid input
+        elif fmt == 'tei':
+            text = f'''\
+                <TEI xmlns="http://www.tei-c.org/ns/1.0">
+                <teiHeader></teiHeader>
+                <text><body>
+                {response.text}
+                </body></text></TEI>'''
+        else:
+            assert False, f'invalid fmt= {fmt!r}'
+
+        with NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as fd:
+            fd.write(text)
+            filename = fd.name
+        try:
+            dict_obj = file_to_obj(filename)
+        finally:
+            os.remove(filename)
+        entry_obj = dict_obj['entries'][0]
+        return entry_obj
+
+    def get_one_entry(origin_entry_id):
+        result = db.entry.find_one({'_origin_id': origin_entry_id,
+                                    '_dict_id': our_dict_id})
+        if result:
+            return str(result['_id'])
+
+        for fmt in ('json', 'ontolex', 'tei'):
+            response = client.get(urljoin(endpoint,
+                                          f'{fmt}/{origin_dict_id}/{origin_entry_id}'))
+            if not response.is_error:
+                break
+        else:
+            raise ValueError('No suitable format for entry '
+                             f'{origin_dict_id}/{origin_entry_id}')
+
+        entry_obj = response_to_entry_obj(fmt, response)
+        entry_obj['_dict_id'] = our_dict_id
+        entry_obj['_origin_id'] = origin_entry_id
+
+        result = db.entry.insert_one(entry_obj)
+        our_entry_id = str(result.inserted_id)
+        db.dicts.update_one({'_id': our_dict_id},
+                            {'$push': {'_entries': our_entry_id}})
+        return our_entry_id
+
+    headers = {'X-API-Key': source.apiKey} if source.apiKey else {}
+    assert source.endpoint
+    endpoint = source.endpoint
+    with get_db_sync() as db, \
+            httpx.Client(headers=headers) as client:
+
+        origin_dict_id = source.id
+        result = db.dicts.find_one(
+            {'_origin_id': origin_dict_id,
+             '_origin_endpoint': endpoint}, {'_id': True})
+        if result:
+            our_dict_id = result['_id']
+        else:
+            response = client.get(urljoin(endpoint, f'/about/{origin_dict_id}'))
+            dict_obj = response.json()
+            dict_obj['api_key'] = source.apiKey
+            dict_obj['_origin_id'] = origin_dict_id
+            dict_obj['_origin_endpoint'] = endpoint
+            our_dict_id = db.dicts.insert_one(dict_obj).inserted_id
+
+        origin_entry_ids = source.entries
+        if not origin_entry_ids:
+            response = client.get(urljoin(endpoint, f'list/{origin_dict_id}'))
+            origin_entry_ids = [i.id for i in response.json()]
+
+        # THIS, is absolutely not how it was supposed to be done
+        our_entry_ids = [get_one_entry(i) for i in origin_entry_ids]
+
+        new_source = LinkingSource(
+            id=our_dict_id,
+            apiKey=source.apiKey,
+            # Don't request explicit entries if none were passed to us
+            entries=our_entry_ids if source.entries else None)
+        return new_source

@@ -3,6 +3,7 @@ import logging.config
 import os
 import traceback
 from http import HTTPStatus
+from tempfile import NamedTemporaryFile
 
 from fastapi import FastAPI, Response
 from fastapi.responses import ORJSONResponse, RedirectResponse
@@ -47,8 +48,13 @@ app.add_middleware(SessionMiddleware,
 @app.on_event('startup')
 async def startup_event():
     log.info('App startup')
+
+    # Check we can write upload and temp files
     assert os.access(settings.UPLOAD_PATH, os.F_OK | os.W_OK | os.X_OK), \
         'Need write access to configured UPLOAD_PATH'
+    with NamedTemporaryFile(mode='w') as fd:
+        fd.write('foo')
+
     dispatch_migration()
 
 
