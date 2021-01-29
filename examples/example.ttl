@@ -5,10 +5,11 @@
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix dc11: <http://purl.org/dc/elements/1.1/> .
 @prefix dc: <http://purl.org/dc/terms/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 <#dictionary> a lime:Lexicon ;
     lime:language "en" ;
-    dc11:license <http://www.example.com/license> ;
+    dc:license <http://www.example.com/license> ;
     dc:title "Ontolex Turtle Example Dictionary" ;
     dc:description "Contains a few entries for testing" ;
     dc:creator [
@@ -17,35 +18,33 @@
         foaf:homepage <http://www.example.com/>
     ] ;
     dc:publisher "ELEXIS" ;
-    dc:publisher [
-        foaf:name "Example Publisher"
-    ] ;
+    dc:publisher [ foaf:name "Example Publisher" ] ;
     lime:entry <#cat-n>, <#cat-v> .
 
 <#cat-n> a ontolex:Word ;
     lexinfo:partOfSpeech lexinfo:commonNoun ;
-    ontolex:canonicalForm [
-        ontolex:writtenRep "cat"@en,
-                           "mačka"@sl
-    ] ;
-    ontolex:sense [
-        skos:definition "a type of animal"@en,
-                        "vrsta živali"@sl ;
-        ontolex:reference <http://dbpedia.org/page/Cat>
-    ] ;
-    ontolex:sense [
-        skos:definition "an attractive woman"@en,
-                        "privlačna ženska"@sl
-    ] .
+    ontolex:canonicalForm [ ontolex:writtenRep "cat"@en, "mačka"@sl ] ;
+    ontolex:otherForm [ ontolex:writtenRep "🐈"@en, "🐈"@sl ] ;
+    ontolex:sense <#cat-n-1>, <#cat-n-2> .
+
+<#cat-n-1> a ontolex:LexicalSense ;
+    rdfs:label "cat-n-1" ;
+    skos:definition "a type of animal"@en, "vrsta živali"@sl ;
+    ontolex:reference <http://dbpedia.org/page/Cat> .
+
+<#cat-n-2> a ontolex:LexicalSense ;
+    rdfs:label "cat-n-2" ;
+    skos:definition "an attractive woman"@en, "privlačna ženska"@sl .
 
 <#cat-v> a ontolex:Word ;
     lexinfo:partOfSpeech lexinfo:verb ;
-    ontolex:canonicalForm [
-        ontolex:writtenRep "cat"@en
-    ] ;
-    ontolex:sense [
-        skos:definition "print contents of a computer file"@en ;
-    ] ;
-    ontolex:sense [
-        skos:definition "raise (an anchor) from the surface of the water to the cathead"@en
-    ] .
+    ontolex:canonicalForm [ ontolex:writtenRep "cat"@en ] ;
+    ontolex:sense <#cat-v-1>, <#cat-v-2> .
+
+<#cat-v-1> a ontolex:LexicalSense ;
+    rdfs:label "cat-v-1" ;
+    skos:definition "print contents of a computer file"@en .
+
+<#cat-v-2> a ontolex:LexicalSense ;
+    rdfs:label "cat-v-2" ;
+    skos:definition "raise (an anchor) from the surface of the water to the cathead"@en .

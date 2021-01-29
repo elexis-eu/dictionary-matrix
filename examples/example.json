@@ -29,6 +29,7 @@
                 },
                 "senses": [
                     {
+                        "@id": "cat-n-1",
                         "definition": {
                             "en": "a type of animal",
                             "sl": "vrsta živali"
@@ -36,6 +37,7 @@
                         "reference": ["http://dbpedia.org/page/Cat"]
                     },
                     {
+                        "@id": "cat-n-2",
                         "definition": {
                             "en": "an attractive woman",
                             "sl": "privlačna ženska"
@@ -55,11 +57,13 @@
                 },
                 "senses": [
                     {
+                        "@id": "cat-v-1",
                         "definition": {
                             "en": "print contents of a computer file"
                         }
                     },
                     {
+                        "@id": "cat-v-2",
                         "definition": {
                             "en": "raise (an anchor) from the surface of the water to the cathead"
                         }

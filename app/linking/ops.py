@@ -54,7 +54,8 @@ def process_linking_job(id: str):  # noqa: C901
     reset_db_client()
     remote_task_id = None
     service_url = None
-    result = None
+    our_result = None
+    origin_result = None
     job = None
     new_status = LinkingStatus(state=LinkingJobStatus.FAILED, message='')
     try:
@@ -81,9 +82,13 @@ def process_linking_job(id: str):  # noqa: C901
                     f"Dictionary {job.target.id!r} not found here"
 
         # Fetch linked entries to obtain a local copy
+        origin_source_dict_id = None
+        origin_target_dict_id = None
         if job.source.endpoint:
+            origin_source_dict_id = job.source.id
             job.source = _get_entries(job.source)
         if job.target.endpoint and not is_babelnet:
+            origin_target_dict_id = job.target.id
             job.target = _get_entries(job.target)
 
         # Submit task to the remote linking service
@@ -103,9 +108,26 @@ def process_linking_job(id: str):  # noqa: C901
 
             time.sleep(30)
 
-        # TODO: Use/convert the results
-        if result:
-            ...
+        # Convert results' to origin entry ids
+        our_result = result
+        origin_result = None
+        if origin_source_dict_id or origin_target_dict_id:
+            origin_result = our_result.copy()
+            with get_db_sync() as db:
+                for should_convert, our_dict_id, results_key in [
+                    (origin_source_dict_id, job.source.id, 'source_entry'),
+                    (origin_target_dict_id, job.target.id, 'target_entry'),
+                ]:
+                    if not should_convert:
+                        continue
+                    entries = list(db.entry.find(
+                        {'_dict_id': our_dict_id, '_origin_id': {'$exists': True}},
+                        {'_origin_id': True, 'senses': True}
+                    ))
+                    to_origin_id = {str(i['_id']): i['_origin_id']
+                                    for i in entries}.__getitem__
+                    for res in origin_result:
+                        res[results_key] = to_origin_id(res[results_key])
 
     except Exception:
         log.exception('Unexpected error for linking task %s: %s', id, job)
@@ -116,7 +138,8 @@ def process_linking_job(id: str):  # noqa: C901
             db.linking_jobs.update_one(
                 {'_id': ObjectId(id)},
                 {'$set': dict(new_status,
-                              result=result,
+                              our_result=our_result,
+                              origin_result=origin_result,
                               service_url=service_url,
                               remote_task_id=remote_task_id)})
 
@@ -209,8 +232,14 @@ def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
         # THIS, is absolutely not how it was supposed to be done
         our_entry_ids = [get_one_entry(i) for i in origin_entry_ids]
 
+        # We are hereforth the source endpoint for this linking task
+        from .router import router
+        assert router.prefix
+        endpoint = urljoin(settings.SITEURL, router.prefix)
+
         new_source = LinkingSource(
             id=our_dict_id,
+            endpoint=endpoint,
             apiKey=source.apiKey,
             # Don't request explicit entries if none were passed to us
             entries=our_entry_ids if source.entries else None)

@@ -24,7 +24,7 @@
     </teiHeader>
     <text>
         <body>
-            <entry xml:id="cat-n">
+            <entry xml:id="cat-n" xml:lang="en">
                 <form type="lemma">
                     <orth xml:lang="en">cat</orth>
                     <orth xml:lang="sl">mačka</orth>
@@ -32,26 +32,26 @@
                 <gramGrp>
                     <pos norm="NOUN">noun</pos>
                 </gramGrp>
-                <sense n="1">
+                <sense n="1" xml:id="cat-n-1">
                     <def xml:lang="en">a type of animal</def>
                     <def xml:lang="sl">vrsta živali</def>
                 </sense>
-                <sense n="2">
+                <sense n="2" xml:id="cat-n-2">
                     <def xml:lang="en">an attractive woman</def>
                     <def xml:lang="sl">privlačna ženska</def>
                 </sense>
             </entry>
-            <entry xml:id="cat-v">
+            <entry xml:id="cat-v" xml:lang="en">
                 <form type="lemma">
                     <orth xml:lang="en">cat</orth>
                 </form>
                 <gramGrp>
                     <pos norm="VERB">verb</pos>
                 </gramGrp>
-                <sense n="1">
+                <sense n="1" xml:id="cat-v-1">
                     <def xml:lang="en">print contents of a computer file</def>
                 </sense>
-                <sense n="2">
+                <sense n="2" xml:id="cat-v-2">
                     <def xml:lang="en">raise (an anchor) from the surface of the water to the cathead</def>
                 </sense>
             </entry>

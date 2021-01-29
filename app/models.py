@@ -128,6 +128,7 @@ class _CanonicalForm(BaseModel):
 
 
 class _Sense(BaseModel):
+    id: Optional[str]
     definition: Optional[_LangValue]
     reference: Optional[List[HttpUrl]]
 

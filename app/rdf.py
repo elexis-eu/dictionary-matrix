@@ -81,6 +81,7 @@ def _from_json(filename):
 def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict:  # noqa: C901
     RDF_RESOURCE = f'{{{RDF}}}resource'
     RDF_ABOUT = f'{{{RDF}}}about'
+    XMLNS_ID = f'{{{XMLNS}}}id'
     XPath = partial(ET.XPath, smart_strings=False, regexp=False)
 
     @lru_cache(1)
@@ -265,7 +266,10 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
 
             # Senses
             for sense_el in get_sense(entry_el):
+                sense_id = (sense_el.attrib.get(RDF_ABOUT)
+                            or sense_el.attrib.get(XMLNS_ID))
                 sense_obj: dict = {
+                    'id': sense_id,
                     'definition': {},
                     'reference': [el.attrib[RDF_RESOURCE]
                                   for el in get_reference(sense_el)]
@@ -327,8 +331,12 @@ def entry_to_tei(entry: dict) -> str:
     def defns(sense):
         return ''.join(f'<def xml:lang="{lang}">{value}</def>'
                        for lang, value in sense['definition'].items())
-    senses = ['<sense n="{}">{}</sense>'.format(i, defns(sense))
-              for i, sense in enumerate(entry['senses'], 1)]
+    senses = [
+        '<sense n="{i}"{id}>{text}</sense>'.format(
+            i=i, text=defns(sense),
+            id=f' xml:about="{sense["id"]}"' if sense.get('id') else '')
+        for i, sense in enumerate(entry['senses'], 1)
+    ]
     xml = f'''\
 <entry xml:id="{entry['_id']}">
 <form type="lemma">{''.join(lemmas)}</form>
@@ -390,4 +398,7 @@ def entry_to_jsonld(entry: dict) -> bytes:
     obj['@id'] = f'elexis:{obj.pop("_id")}'
     obj['@type'] = ONTOLEX + obj.pop('type')
     obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
+    for sense in obj['senses']:
+        if 'id' in sense:
+            sense['@id'] = sense.pop('id')
     return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))

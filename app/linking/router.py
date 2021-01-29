@@ -83,7 +83,8 @@ async def status(
 ):
     task_id = (await request.body()).decode()
     job = await db.linking_jobs.find_one(
-        {'_id': ObjectId(task_id)}, {'result': False})
+        {'_id': ObjectId(task_id)}, {'our_result': False,
+                                     'origin_result': False})
     if not job:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
     return job
@@ -99,6 +100,7 @@ async def result(
 ):
     task_id = (await request.body()).decode()
     job = await db.linking_jobs.find_one({'_id': ObjectId(task_id)})
-    if not job or not job['result']:
+    try:
+        return job['origin_result'] or job['our_result']
+    except KeyError:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
-    return job['result']
