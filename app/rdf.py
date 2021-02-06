@@ -74,6 +74,13 @@ def _from_json(filename):
         obj = orjson.loads(fd.read())
     assert len(obj) == 1, "Expected one dictionary per JSON file"
     dict_id, obj = next(iter(obj.items()))
+    for entry in obj['entries']:
+        # Convert POS from Lexinfo to UD. Strip its JSON-LD naemspace prefix.
+        entry['partOfSpeech'] = lexinfo_pos_to_ud(entry['partOfSpeech'].split(':')[-1])
+        # Strip type namespace base URI
+        # FIXME: This is fragile and based solely on our JSON-LD entry export
+        entry['@type'] = entry['@type'].split('#')[-1]
+
     obj = JsonDictionary(**obj).dict(exclude_none=True, exclude_unset=True)
     return obj
 

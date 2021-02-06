@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import traceback
+from functools import lru_cache
 from tempfile import NamedTemporaryFile
 from typing import List
 from urllib.parse import urljoin
@@ -50,6 +51,14 @@ def _upstream_result(job: LinkingJobPrivate) -> List[dict]:
     return result
 
 
+@lru_cache(1)
+def _local_endpoint():
+    """URL to us, the source endpoint for this linking task"""
+    from .router import router
+    assert router.prefix
+    return urljoin(settings.SITEURL, router.prefix)
+
+
 def process_linking_job(id: str):  # noqa: C901
     reset_db_client()
     remote_task_id = None
@@ -87,9 +96,16 @@ def process_linking_job(id: str):  # noqa: C901
         if job.source.endpoint:
             origin_source_dict_id = job.source.id
             job.source = _get_entries(job.source)
-        if job.target.endpoint and not is_babelnet:
-            origin_target_dict_id = job.target.id
-            job.target = _get_entries(job.target)
+        else:
+            job.source.endpoint = _local_endpoint()
+        if not is_babelnet:
+            if job.target.endpoint:
+                origin_target_dict_id = job.target.id
+                job.target = _get_entries(job.target)
+            else:
+                job.target.endpoint = _local_endpoint()
+        assert job.source.endpoint.startswith(_local_endpoint())
+        assert is_babelnet or job.target.endpoint.startswith(_local_endpoint())
 
         # Submit task to the remote linking service
         job.remote_task_id = remote_task_id = _upstream_submit(service_url, job)
@@ -101,8 +117,8 @@ def process_linking_job(id: str):  # noqa: C901
             if new_status.state in (LinkingJobStatus.COMPLETED,
                                     LinkingJobStatus.FAILED):
                 log.debug('Linking task finished: '
-                          'job %r (task %r) state %s, message: %s',
-                          job.id, remote_task_id, new_status.state, new_status.message)
+                          'job %r (task %r) state %s, message: %r',
+                          str(job.id), remote_task_id, new_status.state, new_status.message)
                 result = _upstream_result(job)
                 break
 
@@ -121,13 +137,13 @@ def process_linking_job(id: str):  # noqa: C901
                     if not should_convert:
                         continue
                     entries = list(db.entry.find(
-                        {'_dict_id': our_dict_id, '_origin_id': {'$exists': True}},
+                        {'_dict_id': ObjectId(our_dict_id), '_origin_id': {'$exists': True}},
                         {'_origin_id': True, 'senses': True}
                     ))
                     to_origin_id = {str(i['_id']): i['_origin_id']
-                                    for i in entries}.__getitem__
+                                    for i in entries}
                     for res in origin_result:
-                        res[results_key] = to_origin_id(res[results_key])
+                        res[results_key] = to_origin_id[res[results_key]]
 
     except Exception:
         log.exception('Unexpected error for linking task %s: %s', id, job)
@@ -217,7 +233,7 @@ def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
         if result:
             our_dict_id = result['_id']
         else:
-            response = client.get(urljoin(endpoint, f'/about/{origin_dict_id}'))
+            response = client.get(urljoin(endpoint, f'about/{origin_dict_id}'))
             dict_obj = response.json()
             dict_obj['api_key'] = source.apiKey
             dict_obj['_origin_id'] = origin_dict_id
@@ -227,19 +243,14 @@ def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
         origin_entry_ids = source.entries
         if not origin_entry_ids:
             response = client.get(urljoin(endpoint, f'list/{origin_dict_id}'))
-            origin_entry_ids = [i.id for i in response.json()]
+            origin_entry_ids = [i['id'] for i in response.json()]
 
         # THIS, is absolutely not how it was supposed to be done
         our_entry_ids = [get_one_entry(i) for i in origin_entry_ids]
 
-        # We are hereforth the source endpoint for this linking task
-        from .router import router
-        assert router.prefix
-        endpoint = urljoin(settings.SITEURL, router.prefix)
-
         new_source = LinkingSource(
-            id=our_dict_id,
-            endpoint=endpoint,
+            id=str(our_dict_id),
+            endpoint=_local_endpoint(),
             apiKey=source.apiKey,
             # Don't request explicit entries if none were passed to us
             entries=our_entry_ids if source.entries else None)
