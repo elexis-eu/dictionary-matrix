@@ -1,5 +1,4 @@
 import logging
-import multiprocessing as mp
 import os
 import shutil
 import traceback
@@ -7,7 +6,6 @@ from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
 from queue import SimpleQueue
-from threading import Thread
 from typing import List, Optional
 
 import httpx
@@ -19,7 +17,7 @@ from .db import _DbType, get_db, get_db_sync, reset_db_client, safe_path
 from .models import Genre, ImportJob, JobStatus, Language, ReleasePolicy, Url
 from .rdf import file_to_obj
 from .settings import settings
-
+from .tasks import Task
 
 log = logging.getLogger(__name__)
 
@@ -105,28 +103,11 @@ def ensure_upload_dir():
 
 @router.on_event('startup')
 def prepare_import_queue_and_start_workers():
-    log.info('Init worker threads (file upload)')
-    for i in range(settings.UPLOAD_N_WORKERS):
-        Thread(
-            target=_dict_import_worker,
-            args=(_import_queue,),
-            name=f'process_upload_worker_{i}',
-            daemon=True,  # join thread on process exit
-        ).start()
-
-
-def _dict_import_worker(queue):
-    for id in iter(queue.get, None):  # type: str
-        try:
-            # We process the document in a subprocess.
-            # The malicious document may crash its process (lxml is C),
-            # and we don't want that to affect the app, do we?
-            proc = mp.Process(target=_process_one_dict,
-                              args=(id,), daemon=True)
-            proc.start()
-            proc.join(timeout=settings.UPLOAD_TIMEOUT_SECONDS)
-        except Exception:
-            log.exception('Unexpected exception on %s:', id)
+    Task(target=_process_one_dict,
+         queue=_import_queue,
+         n_workers=settings.UPLOAD_N_WORKERS,
+         name='dict_import',
+         timeout=settings.UPLOAD_TIMEOUT_SECONDS).start()
 
 
 def _process_one_dict(id: str):

@@ -1,8 +1,6 @@
 import logging
-import multiprocessing as mp
 from http import HTTPStatus
 from queue import SimpleQueue
-from threading import Thread
 from typing import List
 
 from bson import ObjectId
@@ -12,7 +10,8 @@ from fastapi.responses import PlainTextResponse
 from .models import LinkingJob, LinkingOneResult, LinkingStatus
 from .ops import process_linking_job
 from ..db import _DbType, get_db
-
+from ..settings import settings
+from ..tasks import Task
 
 log = logging.getLogger(__name__)
 
@@ -46,31 +45,10 @@ async def submit(
 
 @router.on_event('startup')
 def init_linking_task_worker():
-    log.info('Init linking task worker thread')
-    Thread(
-        target=_linking_worker,
-        args=(_linking_queue,),
-        name='linking_task_worker',
-        daemon=True,  # join thread on process exit
-    ).start()
-
-
-def _linking_worker(queue):
-    processes = []
-    for id in iter(queue.get, None):  # type: str
-        proc = mp.Process(
-            target=process_linking_job,
-            args=(id,),
-            name=f'linking_task_worker_{id}',
-            daemon=True,  # join on process exit
-        )
-        proc.start()
-        processes.append(proc)
-        # Reap dead children
-        for proc in list(processes):
-            if not proc.is_alive():
-                proc.join()
-                processes.remove(proc)
+    Task(target=process_linking_job,
+         queue=_linking_queue,
+         n_workers=settings.LINKING_N_WORKERS,
+         name='linking_task').start()
 
 
 @router.post('/status',
