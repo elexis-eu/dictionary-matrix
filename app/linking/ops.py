@@ -1,7 +1,10 @@
 import logging
 import os
+import re
+import subprocess
 import time
 import traceback
+from collections import defaultdict
 from functools import lru_cache
 from tempfile import NamedTemporaryFile
 from typing import List
@@ -12,9 +15,9 @@ from bson import ObjectId
 
 from .models import (
     LinkingJob, LinkingJobPrivate, LinkingJobStatus, LinkingOneResult,
-    LinkingSource, LinkingStatus,
+    LinkingSource, LinkingStatus, SenseLink,
 )
-from ..rdf import file_to_obj
+from ..rdf import export_for_naisc, file_to_obj
 from ..settings import settings
 from ..db import get_db_sync, reset_db_client
 
@@ -66,7 +69,7 @@ def process_linking_job(id: str):  # noqa: C901
     our_result = None
     origin_result = None
     job = None
-    new_status = LinkingStatus(state=LinkingJobStatus.FAILED, message='')
+    new_status = LinkingStatus(state=LinkingJobStatus.COMPLETED, message='')
     try:
         # Get job handle
         while True:  # Maybe retry if db not yet synced
@@ -107,22 +110,26 @@ def process_linking_job(id: str):  # noqa: C901
         assert job.source.endpoint.startswith(_local_endpoint())
         assert is_babelnet or job.target.endpoint.startswith(_local_endpoint())
 
-        # Submit task to the remote linking service
-        job.remote_task_id = remote_task_id = _upstream_submit(service_url, job)
-        assert remote_task_id
+        if not is_babelnet and settings.LINKING_NAISC_EXECUTABLE:
+            # Naisc is run as local CLI command
+            result = _linking_from_naisc_executable(job)
+        else:
+            # Submit task to the remote linking service
+            job.remote_task_id = remote_task_id = _upstream_submit(service_url, job)
+            assert remote_task_id
 
-        # Wait for task completion
-        while True:
-            new_status = _upstream_status(job)
-            if new_status.state in (LinkingJobStatus.COMPLETED,
-                                    LinkingJobStatus.FAILED):
-                log.debug('Linking task finished: '
-                          'job %r (task %r) state %s, message: %r',
-                          str(job.id), remote_task_id, new_status.state, new_status.message)
-                result = _upstream_result(job)
-                break
+            # Wait for task completion
+            while True:
+                new_status = _upstream_status(job)
+                if new_status.state in (LinkingJobStatus.COMPLETED,
+                                        LinkingJobStatus.FAILED):
+                    log.debug('Linking task finished: '
+                              'job %r (task %r) state %s, message: %r',
+                              str(job.id), remote_task_id, new_status.state, new_status.message)
+                    result = _upstream_result(job)
+                    break
 
-            time.sleep(30)
+                time.sleep(30)
 
         # Convert results' to origin entry ids
         our_result = result
@@ -255,3 +262,73 @@ def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
             # Don't request explicit entries if none were passed to us
             entries=our_entry_ids if source.entries else None)
         return new_source
+
+
+def _linking_from_naisc_executable(job):
+    assert settings.LINKING_NAISC_EXECUTABLE
+    assert job.source.endpoint.startswith(_local_endpoint())
+    assert job.target.endpoint.startswith(_local_endpoint())
+    temp_files = []
+    sense_entry_mappings = []
+    try:
+        for id, entries in ((job.source.id, job.source.entries),
+                            (job.target.id, job.target.entries)):
+            with NamedTemporaryFile(suffix='.ttl', delete=False) as fd, \
+                    get_db_sync() as db:
+                temp_files.append(fd.name)
+                if entries:
+                    entries = db.entry.find({
+                        '_id': {'$in': list(map(ObjectId, entries))}}, {'_dict_id': False})
+                else:
+                    entries = db.entry.find({'_dict_id': ObjectId(id)}, {'_dict_id': False})
+                entries = list(entries)
+                fd.write(export_for_naisc(entries))
+                sense_entry_mappings.append({sense['@id']: str(entry['_id'])
+                                             for entry in entries
+                                             for sense in entry['senses']})
+
+        proc = subprocess.run([settings.LINKING_NAISC_EXECUTABLE, *temp_files],
+                              capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise RuntimeError('Naisc errored with:\n' + proc.stderr)
+    finally:
+        for file in temp_files:
+            os.remove(file)
+
+    # Interpret output
+    sense_links = defaultdict(list)
+    # Naisc output format:
+    #     <left-filename#sense-id-1> <SKOS_NS#exactMatch> <right-filename#sense-id-2> . # 0.8000
+    for line in proc.stdout.split('\n'):
+        if not line.strip():
+            continue
+        what, score = line.rsplit('#', maxsplit=1)
+        score = float(score)
+        left_id, match_type, right_id = re.sub(
+            r'<.*?#(.*?)>\s<.*?#(.*?)>\s<.*?#(.*?)>.*',
+            r'\1 \2 \3', what).split()
+        match_type = {
+            'exactMatch': 'exact',
+            # TODO: Below TBD?
+            'broadMatch': 'broader',
+            'broader': 'broader',
+            'narrowMatch': 'narrower',
+            'narrower': 'narrower',
+            'relatedMatch': 'related',
+        }[match_type]
+
+        sense_links[(
+            sense_entry_mappings[0][left_id],
+            sense_entry_mappings[1][right_id]
+        )].append(
+            SenseLink(source_sense=left_id,
+                      target_sense=right_id,
+                      type=match_type,
+                      score=score))
+
+    # Result as Linking API defines it
+    result = [LinkingOneResult(source_entry=k1,
+                               target_entry=k2,
+                               linking=v).dict()
+              for (k1, k2), v in sense_links.items()]
+    return result

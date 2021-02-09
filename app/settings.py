@@ -40,6 +40,7 @@ class _Settings(BaseSettings):
     LINKING_N_WORKERS: int = 2
     LINKING_NAISC_URL: AnyHttpUrl = 'http://localhost:8034/naisc/'  # type: ignore
     LINKING_BABELNET_URL: AnyHttpUrl = 'https://babelnet.io/v5/'    # type: ignore
+    LINKING_NAISC_EXECUTABLE: Optional[FilePath] = None
 
     class Config:
         env_file = '.env'

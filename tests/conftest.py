@@ -101,3 +101,11 @@ async def example_id(client) -> AsyncGenerator[str, None]:
     finally:
         # Drop db
         _db_client_sync().drop_database(settings.MONGODB_DATABASE)
+
+
+@pytest.fixture(scope='session')
+async def example_entry_ids(example_id):
+    with get_db_sync() as db:
+        cursor = db.entry.find({'_dict_id': ObjectId(example_id)}, {'_id': True})
+        ids = [str(i['_id']) for i in cursor]
+    return ids

@@ -4,7 +4,7 @@ from collections import Counter, defaultdict
 from functools import lru_cache, partial
 from io import BytesIO
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 import lxml.etree as ET
 import orjson
@@ -402,10 +402,17 @@ def entry_to_jsonld(entry: dict) -> bytes:
     obj = entry.copy()
     # TODO: Make @context a href
     obj['@context'] = JSONLD_CONTEXT
-    obj['@id'] = f'elexis:{obj.pop("_id")}'
+    obj['@id'] = id = f'elexis:{obj.pop("_id")}'
     obj['@type'] = ONTOLEX + obj.pop('type')
     obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
-    for sense in obj['senses']:
-        if 'id' in sense:
-            sense['@id'] = sense.pop('id')
+    for i, sense in enumerate(obj['senses']):
+        sense['@id'] = sense.pop('id', f'{id}-{i}')
     return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))
+
+
+def export_for_naisc(entries: Iterable) -> bytes:
+    graph = Graph()
+    for entry in entries:
+        graph.parse(data=entry_to_jsonld(entry),
+                    format='json-ld')
+    return graph.serialize(format='turtle')
