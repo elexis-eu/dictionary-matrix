@@ -302,11 +302,11 @@ def _linking_from_naisc_executable(job):
     for line in proc.stdout.split('\n'):
         if not line.strip():
             continue
-        what, score = line.rsplit('#', maxsplit=1)
-        score = float(score)
+        sep = line.rindex('#')
+        score = float(line[sep + 1:])
         left_id, match_type, right_id = re.sub(
             r'<.*?#(.*?)>\s<.*?#(.*?)>\s<.*?#(.*?)>.*',
-            r'\1 \2 \3', what).split()
+            r'\1 \2 \3', line[:sep]).split()
         match_type = {
             'exactMatch': 'exact',
             # TODO: Below TBD?

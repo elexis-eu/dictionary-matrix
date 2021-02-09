@@ -17,7 +17,7 @@ class _Settings(BaseSettings):
 
     # Base URL where this app is hosted. Used for linking.
     # TODO: test this is set correctly
-    SITEURL: AnyHttpUrl = 'http://localhost:8000'
+    SITEURL: AnyHttpUrl = 'http://localhost:8000'  # type: ignore
 
     SESSION_COOKIE_SECRET_KEY: str = 'changeme secret'
     SESSION_COOKIE_MAX_AGE: int = 24 * 60 * 60

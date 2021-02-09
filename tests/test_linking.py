@@ -24,10 +24,10 @@ async def forwarder(client, example_id, example_entry_ids):
         .respond_with_json((await client.get(f'/list/{example_id}')).json())
     json_responses = [Response((await client.get(f'/json/{example_id}/{id}')).content)
                       for id in example_entry_ids]
-    json_responses = iter(json_responses)
+    json_responses_iter = iter(json_responses)
     httpserver \
         .expect_request(re.compile(rf'/json/{example_id}/[0-9a-f]+')) \
-        .respond_with_handler(lambda _: next(json_responses))
+        .respond_with_handler(lambda _: next(json_responses_iter))
     try:
         httpserver.start()
         yield httpserver
@@ -53,7 +53,7 @@ async def test_linking_local_endpoint(client, example_id, monkeypatch, httpserve
 async def test_linking_remote_endpoint(client, example_id, monkeypatch, httpserver, forwarder):
     # FIXME: Ideally, we would take entry ids from dicts in submitted
     # request, but shit aint so easy due to multiproc, so we just mostly cover.
-    linking_result = []
+    linking_result: list = []
     await _test(client, example_id, monkeypatch, httpserver,
                 endpoint=forwarder.url_for('/'), linking_result=linking_result)
     forwarder.check_assertions()
@@ -102,8 +102,8 @@ async def _test(client, example_id, monkeypatch, httpserver, endpoint, linking_r
                          LINKING_NAISC_URL=httpserver.url_for('/'))))
 
     payload = {
-        'source': {'id': example_id,},
-        'target': {'id': example_id,}
+        'source': {'id': example_id},
+        'target': {'id': example_id}
     }
     if endpoint:
         payload['source']['endpoint'] = endpoint
