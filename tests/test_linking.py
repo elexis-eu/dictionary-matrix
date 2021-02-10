@@ -120,7 +120,7 @@ async def _test(client, example_id, monkeypatch, httpserver, endpoint, linking_r
     assert response.json()['state'] == 'PROCESSING', response.json()
 
     # ... but by now it did.
-    time.sleep(.1)
+    time.sleep(.5)
     response = await client.post('/linking/status', content=task_id)
     assert not response.is_error, response.json()
     assert response.json()['state'] == 'COMPLETED', response.json()

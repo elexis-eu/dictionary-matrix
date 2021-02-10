@@ -3,6 +3,7 @@
 # Tests
 pytest
 pytest-asyncio
+pytest-cov
 pytest-httpserver
 asgi-lifespan
 
