@@ -39,4 +39,6 @@ jobs:
         run: mypy app tests
 
       - name: Test
+        env:
+          UPLOAD_PATH: /tmp
         run: time pytest
