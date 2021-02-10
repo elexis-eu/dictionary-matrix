@@ -1,6 +1,7 @@
 import logging
 import re
 from collections import Counter, defaultdict
+from copy import deepcopy
 from functools import lru_cache, partial
 from io import BytesIO
 from pathlib import Path
@@ -22,6 +23,9 @@ LIME = 'http://www.w3.org/ns/lemon/lime#'
 LEXINFO = 'http://www.lexinfo.net/ontology/3.0/lexinfo#'
 TEI = 'http://www.tei-c.org/ns/1.0'
 
+_RDF_IMPORT_BASE = 'elexis:dict'  # Our every imported Turtle dict's namespace
+_RDF_EXPORT_BASE = 'elexis:'
+
 _tei_to_ontolex = ET.XSLT(
     ET.parse(str(Path(__file__).resolve().parent / 'TEI2Ontolex.xsl')),
     access_control=ET.XSLTAccessControl.DENY_ALL)
@@ -32,6 +36,12 @@ _parse_xml = partial(ET.parse, parser=ET.XMLParser(recover=True,
                                                    remove_comments=True,
                                                    resolve_entities=True,
                                                    remove_blank_text=True))
+
+
+def removeprefix(string: str, prefix: str = _RDF_EXPORT_BASE) -> str:
+    return (string[len(prefix):]
+            if string and string.startswith(prefix) else
+            string)
 
 
 def file_to_obj(filename: str, language: str = None):
@@ -52,7 +62,7 @@ def file_to_obj(filename: str, language: str = None):
 
     if is_turtle:
         graph = Graph()
-        graph.parse(filename, format='turtle', publicID='elexis:dict')
+        graph.parse(filename, format='turtle', publicID=_RDF_IMPORT_BASE)
         xml = graph.serialize(format='pretty-xml')
         xml = _parse_xml(BytesIO(xml))
         obj = _ontolex_etree_to_dict(xml, language)
@@ -275,6 +285,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
             for sense_el in get_sense(entry_el):
                 sense_id = (sense_el.attrib.get(RDF_ABOUT)
                             or sense_el.attrib.get(XMLNS_ID))
+                sense_id = removeprefix(sense_id, _RDF_IMPORT_BASE + '#')
                 sense_obj: dict = {
                     'id': sense_id,
                     'definition': {},
@@ -341,7 +352,7 @@ def entry_to_tei(entry: dict) -> str:
     senses = [
         '<sense n="{i}"{id}>{text}</sense>'.format(
             i=i, text=defns(sense),
-            id=f' xml:about="{sense["id"]}"' if sense.get('id') else '')
+            id=f' xml:id="{sense["id"]}"' if sense.get('id') else '')
         for i, sense in enumerate(entry['senses'], 1)
     ]
     xml = f'''\
@@ -356,7 +367,8 @@ def entry_to_tei(entry: dict) -> str:
 
 def entry_to_turtle(entry: dict) -> bytes:
     graph = Graph()
-    graph.parse(data=entry_to_jsonld(entry), format='json-ld')
+    graph.parse(data=entry_to_jsonld(entry, prefix_ids=True),
+                format='json-ld')
     return graph.serialize(format='turtle')
 
 
@@ -398,21 +410,25 @@ JSONLD_CONTEXT = {
 }
 
 
-def entry_to_jsonld(entry: dict) -> bytes:
-    obj = entry.copy()
+def entry_to_jsonld(entry: dict, *, prefix_ids=False) -> bytes:
+    obj = deepcopy(entry)
     # TODO: Make @context a href
     obj['@context'] = JSONLD_CONTEXT
-    obj['@id'] = id = f'elexis:{obj.pop("_id")}'
+    obj['@id'] = id = str(obj.pop("_id"))
     obj['@type'] = ONTOLEX + obj.pop('type')
     obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
     for i, sense in enumerate(obj['senses']):
         sense['@id'] = sense.pop('id', f'{id}-{i}')
+    if prefix_ids:
+        obj['@id'] = _RDF_EXPORT_BASE + id
+        for sense in obj['senses']:
+            sense['@id'] = _RDF_EXPORT_BASE + sense['@id']
     return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))
 
 
 def export_for_naisc(entries: Iterable) -> bytes:
     graph = Graph()
     for entry in entries:
-        graph.parse(data=entry_to_jsonld(entry),
+        graph.parse(data=entry_to_jsonld(entry, prefix_ids=True),
                     format='json-ld')
     return graph.serialize(format='turtle')

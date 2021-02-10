@@ -17,7 +17,7 @@ from .models import (
     LinkingJob, LinkingJobPrivate, LinkingJobStatus, LinkingOneResult,
     LinkingSource, LinkingStatus, SenseLink,
 )
-from ..rdf import export_for_naisc, file_to_obj
+from ..rdf import export_for_naisc, file_to_obj, removeprefix
 from ..settings import settings
 from ..db import get_db_sync, reset_db_client
 
@@ -283,7 +283,7 @@ def _linking_from_naisc_executable(job):
                     entries = db.entry.find({'_dict_id': ObjectId(id)}, {'_dict_id': False})
                 entries = list(entries)
                 fd.write(export_for_naisc(entries))
-                sense_entry_mappings.append({sense['@id']: str(entry['_id'])
+                sense_entry_mappings.append({sense['id']: str(entry['_id'])
                                              for entry in entries
                                              for sense in entry['senses']})
 
@@ -307,6 +307,8 @@ def _linking_from_naisc_executable(job):
         left_id, match_type, right_id = re.sub(
             r'<.*?#(.*?)>\s<.*?#(.*?)>\s<.*?#(.*?)>.*',
             r'\1 \2 \3', line[:sep]).split()
+        left_id = removeprefix(left_id)  # Strip base URI, if applicable
+        right_id = removeprefix(right_id)
         match_type = {
             'exactMatch': 'exact',
             # TODO: Below TBD?

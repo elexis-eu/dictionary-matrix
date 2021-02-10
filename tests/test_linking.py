@@ -65,8 +65,8 @@ async def test_linking_naisc_executable(client, example_id, monkeypatch, httpser
         'source_entry': example_entry_ids[0],
         'target_entry': example_entry_ids[0],
         'linking': [{
-            'source_sense': 'elexis:dict#cat-n-1',
-            'target_sense': 'elexis:dict#cat-n-1',
+            'source_sense': 'cat-n-1',
+            'target_sense': 'cat-n-1',
             'type': 'exact',
             'score': 0.8,
         }],
