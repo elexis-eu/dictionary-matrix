@@ -3,10 +3,12 @@ import time
 from pathlib import Path
 
 import pytest
+from bson import ObjectId
 from pytest_httpserver import HTTPServer
 from pytest_httpserver.httpserver import Response
 
 import app.linking.ops
+from app.db import get_db_sync
 from app.settings import _Settings
 
 pytestmark = pytest.mark.asyncio
@@ -61,12 +63,17 @@ async def test_linking_remote_endpoint(client, example_id, monkeypatch, httpserv
 
 async def test_linking_naisc_executable(client, example_id, monkeypatch, httpserver,
                                         example_entry_ids):
+    entry_id = example_entry_ids[0]
+    with get_db_sync() as db:
+        entry = db.entry.find_one({'_id': ObjectId(entry_id)})
+        sense_id = entry['senses'][0]['id']
+
     linking_result = [{
         'source_entry': example_entry_ids[0],
         'target_entry': example_entry_ids[0],
         'linking': [{
-            'source_sense': 'cat-n-1',
-            'target_sense': 'cat-n-1',
+            'source_sense': sense_id,
+            'target_sense': sense_id,
             'type': 'exact',
             'score': 0.8,
         }],
