@@ -329,7 +329,9 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
                 _ = Entry(**entry_obj)
 
     if not lexicon_obj['entries']:
-        raise ValueError('\n'.join(errors or ['No valid entries found']))
+        raise ValueError('No valid entries found. Errors:' + '\n'.join(errors or []))
+
+    log.debug(f'Found {len(lexicon_obj["entries"])} valid (of {entry_i + 1}) entries')
 
     # Set languages
     lexicon_obj['meta']['sourceLanguage'] = lexicon_lang

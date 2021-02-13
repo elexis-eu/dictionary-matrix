@@ -21,6 +21,7 @@ def convert(input: str, output: str = None):
     output_fd = sys.stdout if output == '-' else open(output, 'wb')
     output_fd.write(ET.tostring(xslt(xml)))
     print('Written to', output, file=sys.stderr)
+    print(xslt.error_log, file=sys.stderr)
 
 
 if __name__ == '__main__':
