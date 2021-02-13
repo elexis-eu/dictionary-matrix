@@ -98,6 +98,7 @@ def _from_json(filename):
 def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict:  # noqa: C901
     RDF_RESOURCE = f'{{{RDF}}}resource'
     RDF_ABOUT = f'{{{RDF}}}about'
+    RDF_ID = f'{{{RDF}}}ID'
     XMLNS_ID = f'{{{XMLNS}}}id'
     XPath = partial(ET.XPath, smart_strings=False, regexp=False)
 
@@ -284,6 +285,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
             # Senses
             for sense_el in get_sense(entry_el):
                 sense_id = (sense_el.attrib.get(RDF_ABOUT)
+                            or sense_el.attrib.get(RDF_ID)
                             or sense_el.attrib.get(XMLNS_ID))
                 sense_id = removeprefix(sense_id, _RDF_IMPORT_BASE + '#')
                 sense_obj: dict = {
