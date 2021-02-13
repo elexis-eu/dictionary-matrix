@@ -9,7 +9,7 @@ RUN set -eux; \
 COPY /app /app/app
 RUN set -eux; \
     mkdir /uploads; \
-    chown 10000:10000 /app /uploads; \
+    chown 10000:10000 /app /uploads /tmp; \
     python app/app --help  # smoke test
 
 USER 10000:10000
