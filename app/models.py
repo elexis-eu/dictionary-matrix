@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import sys
 from enum import Enum, auto
 from typing import Dict, List, Optional, Union
 
 import orjson
 from pydantic import (
-    AnyHttpUrl, BaseModel as _BaseModel, Field, FilePath, HttpUrl,
-    conlist, constr, root_validator, validator,
+    BaseModel as _BaseModel,
+    Field, HttpUrl, conlist, constr, root_validator,
 )
 
 
@@ -168,34 +167,3 @@ class Entry(BaseModel):
 class JsonDictionary(BaseModel):
     meta: Dictionary
     entries: conlist(Entry, min_items=1)  # type: ignore
-
-
-class JobStatus(_AutoStrEnum):
-    SCHEDULED, ERROR, DONE = _AutoStrEnum._auto(3)
-
-
-class _ImportMeta(BaseModel):
-    release: ReleasePolicy
-    sourceLanguage: Optional[Language]
-    genre: Optional[List[Genre]]
-    api_key: str
-
-
-# Permit 'localhost' in tests, but not in production
-Url = AnyHttpUrl if 'pytest' in sys.modules else HttpUrl
-
-
-class ImportJob(BaseModel):
-    url: Optional[Url]  # type: ignore
-    file: Optional[FilePath]
-    state: JobStatus
-    meta: _ImportMeta
-
-    @validator('url', 'file')
-    def cast_to_str(cls, v):
-        return str(v) if v else None
-
-    @root_validator
-    def check_valid(cls, values):
-        assert values['url'] or values['file']
-        return values

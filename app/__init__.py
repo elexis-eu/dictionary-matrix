@@ -11,9 +11,9 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .db import _db_client, dispatch_migration
+from .importing.router import router as import_router
 from .linking.router import router as linking_router
-from .router_rest import router as rest_router
-from .router_import import router as import_router
+from .router import router as rest_router
 from .settings import settings
 
 

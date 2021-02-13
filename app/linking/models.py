@@ -3,7 +3,8 @@ from typing import List, Optional
 from bson import ObjectId
 from pydantic import validator
 
-from ..models import BaseModel, Url, _AutoStrEnum
+from ..models import BaseModel, _AutoStrEnum
+from ..importing.models import Url
 
 
 class LinkingJobStatus(_AutoStrEnum):
