@@ -1,0 +1,1027 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "ELEXIS Dictionary Matrix",
+    "description": "...",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/import": {
+      "post": {
+        "summary": "Import a new dictionary.",
+        "description": "Import a new dictionary by direct file upload <b>or</b> an URL from where the dictionary can be fetched.",
+        "operationId": "dict_import_import_post",
+        "parameters": [
+          {
+            "description": "URL of the dictionary to fetch and import. See <em>file=</em>.",
+            "required": false,
+            "schema": {
+              "title": "Url",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string",
+              "description": "URL of the dictionary to fetch and import. See <em>file=</em>.",
+              "format": "uri"
+            },
+            "name": "url",
+            "in": "query"
+          },
+          {
+            "description": "API key of the user uploading the dictionary.",
+            "required": true,
+            "schema": {
+              "title": "Api Key",
+              "type": "string",
+              "description": "API key of the user uploading the dictionary."
+            },
+            "name": "api_key",
+            "in": "query"
+          },
+          {
+            "description": "Dictionary release policy. One of: PUBLIC, NONCOMMERCIAL, RESEARCH, PRIVATE.",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/ReleasePolicy"
+                }
+              ],
+              "description": "Dictionary release policy. One of: PUBLIC, NONCOMMERCIAL, RESEARCH, PRIVATE."
+            },
+            "name": "release",
+            "in": "query"
+          },
+          {
+            "description": "Main dictionary language in ISO 639 2-alpha or 3-alpha. <b>Required</b> if not specified in the file.",
+            "required": false,
+            "schema": {
+              "title": "Sourcelanguage",
+              "pattern": "[a-z]{2,3}",
+              "type": "string",
+              "description": "Main dictionary language in ISO 639 2-alpha or 3-alpha. <b>Required</b> if not specified in the file."
+            },
+            "name": "sourceLanguage",
+            "in": "query"
+          },
+          {
+            "description": "Dictionary genre. One or more of: gen, lrn, ety, spe, his, ort, trm.",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Genre"
+              },
+              "description": "Dictionary genre. One or more of: gen, lrn, ety, spe, his, ort, trm."
+            },
+            "name": "genre",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_dict_import_import_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dictionaries": {
+      "get": {
+        "summary": "Dictionaries",
+        "operationId": "dictionaries_dictionaries_get",
+        "parameters": [
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dictionaries"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/about/{dictionary}": {
+      "get": {
+        "summary": "About",
+        "operationId": "about_about__dictionary__get",
+        "parameters": [
+          {
+            "description": "Dictionary id.",
+            "required": true,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "[a-f\\d]{24}",
+              "type": "string",
+              "description": "Dictionary id."
+            },
+            "name": "dictionary",
+            "in": "path"
+          },
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dictionary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/list/{dictionary}": {
+      "get": {
+        "summary": "List Dict",
+        "operationId": "list_dict_list__dictionary__get",
+        "parameters": [
+          {
+            "description": "Dictionary id.",
+            "required": true,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "[a-f\\d]{24}",
+              "type": "string",
+              "description": "Dictionary id."
+            },
+            "name": "dictionary",
+            "in": "path"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Offset",
+              "minimum": 0,
+              "type": "integer",
+              "default": 0
+            },
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Limit",
+              "minimum": 1,
+              "type": "integer",
+              "default": 1000000
+            },
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Dict List  Dictionary  Get",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Lemma"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lemma/{dictionary}/{headword}": {
+      "get": {
+        "summary": "List Lemma",
+        "operationId": "list_lemma_lemma__dictionary___headword__get",
+        "parameters": [
+          {
+            "description": "Dictionary id.",
+            "required": true,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "[a-f\\d]{24}",
+              "type": "string",
+              "description": "Dictionary id."
+            },
+            "name": "dictionary",
+            "in": "path"
+          },
+          {
+            "required": true,
+            "schema": {
+              "title": "Headword",
+              "type": "string"
+            },
+            "name": "headword",
+            "in": "path"
+          },
+          {
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PartOfSpeech"
+            },
+            "name": "partOfSpeech",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Offset",
+              "minimum": 0,
+              "type": "integer",
+              "default": 0
+            },
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Limit",
+              "minimum": 1,
+              "type": "integer",
+              "default": 1000000
+            },
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Inflected",
+              "type": "boolean",
+              "default": false
+            },
+            "name": "inflected",
+            "in": "query"
+          },
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response List Lemma Lemma  Dictionary   Headword  Get",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Lemma"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/json/{dictionary}/{entry_id}": {
+      "get": {
+        "summary": "Entry Json",
+        "operationId": "entry_json_json__dictionary___entry_id__get",
+        "parameters": [
+          {
+            "description": "Dictionary id.",
+            "required": true,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "[a-f\\d]{24}",
+              "type": "string",
+              "description": "Dictionary id."
+            },
+            "name": "dictionary",
+            "in": "path"
+          },
+          {
+            "required": true,
+            "schema": {
+              "title": "Entry Id",
+              "type": "string"
+            },
+            "name": "entry_id",
+            "in": "path"
+          },
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tei/{dictionary}/{entry_id}": {
+      "get": {
+        "summary": "Entry Tei",
+        "operationId": "entry_tei_tei__dictionary___entry_id__get",
+        "parameters": [
+          {
+            "description": "Dictionary id.",
+            "required": true,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "[a-f\\d]{24}",
+              "type": "string",
+              "description": "Dictionary id."
+            },
+            "name": "dictionary",
+            "in": "path"
+          },
+          {
+            "required": true,
+            "schema": {
+              "title": "Entry Id",
+              "type": "string"
+            },
+            "name": "entry_id",
+            "in": "path"
+          },
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ontolex/{dictionary}/{entry_id}": {
+      "get": {
+        "summary": "Entry Ontolex",
+        "operationId": "entry_ontolex_ontolex__dictionary___entry_id__get",
+        "parameters": [
+          {
+            "description": "Dictionary id.",
+            "required": true,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "[a-f\\d]{24}",
+              "type": "string",
+              "description": "Dictionary id."
+            },
+            "name": "dictionary",
+            "in": "path"
+          },
+          {
+            "required": true,
+            "schema": {
+              "title": "Entry Id",
+              "type": "string"
+            },
+            "name": "entry_id",
+            "in": "path"
+          },
+          {
+            "description": "An API key to authorize access to this endpoint if necessary",
+            "required": true,
+            "schema": {
+              "title": "X-Api-Key",
+              "description": "An API key to authorize access to this endpoint if necessary"
+            },
+            "name": "X-API-Key",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/linking/submit": {
+      "post": {
+        "summary": "Submit a linking task.",
+        "operationId": "submit_linking_submit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkingJob"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/linking/status": {
+      "post": {
+        "summary": "Get the status of a linking task.",
+        "operationId": "status_linking_status_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkingStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/linking/result": {
+      "post": {
+        "summary": "Get the result of a linking task.",
+        "operationId": "result_linking_result_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Result Linking Result Post",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LinkingOneResult"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_dict_import_import_post": {
+        "title": "Body_dict_import_import_post",
+        "type": "object",
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string",
+            "description": "Dictionary file to import. In either OntoLex/Turtle, OntoLex/XML/RDF, TEI/XML, or JSON format.",
+            "format": "binary"
+          }
+        }
+      },
+      "Dictionaries": {
+        "title": "Dictionaries",
+        "required": [
+          "dictionaries"
+        ],
+        "type": "object",
+        "properties": {
+          "dictionaries": {
+            "title": "Dictionaries",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "Dictionary": {
+        "title": "Dictionary",
+        "required": [
+          "release",
+          "sourceLanguage"
+        ],
+        "type": "object",
+        "properties": {
+          "release": {
+            "$ref": "#/components/schemas/ReleasePolicy"
+          },
+          "sourceLanguage": {
+            "title": "Sourcelanguage",
+            "pattern": "[a-z]{2,3}",
+            "type": "string"
+          },
+          "targetLanguage": {
+            "title": "Targetlanguage",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "[a-z]{2,3}"
+            }
+          },
+          "genre": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Genre"
+            }
+          },
+          "license": {
+            "title": "License",
+            "maxLength": 2083,
+            "minLength": 1,
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "creator": {
+            "title": "Creator",
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "publisher": {
+            "title": "Publisher",
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "Genre": {
+        "title": "Genre",
+        "enum": [
+          "gen",
+          "lrn",
+          "ety",
+          "spe",
+          "his",
+          "ort",
+          "trm"
+        ],
+        "type": "string",
+        "description": "An enumeration."
+      },
+      "HTTPValidationError": {
+        "title": "HTTPValidationError",
+        "type": "object",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "Lemma": {
+        "title": "Lemma",
+        "required": [
+          "lemma",
+          "id",
+          "partOfSpeech",
+          "language"
+        ],
+        "type": "object",
+        "properties": {
+          "lemma": {
+            "title": "Lemma",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "partOfSpeech": {
+            "$ref": "#/components/schemas/PartOfSpeech"
+          },
+          "language": {
+            "title": "Language",
+            "pattern": "[a-z]{2,3}",
+            "type": "string"
+          },
+          "formats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RdfFormats"
+            }
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "LinkingJob": {
+        "title": "LinkingJob",
+        "required": [
+          "source",
+          "target"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/LinkingSource"
+          },
+          "target": {
+            "$ref": "#/components/schemas/LinkingSource"
+          },
+          "config": {
+            "title": "Config",
+            "type": "object"
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "LinkingJobStatus": {
+        "title": "LinkingJobStatus",
+        "enum": [
+          "PROCESSING",
+          "COMPLETED",
+          "FAILED"
+        ],
+        "type": "string",
+        "description": "An enumeration."
+      },
+      "LinkingOneResult": {
+        "title": "LinkingOneResult",
+        "required": [
+          "source_entry",
+          "target_entry",
+          "linking"
+        ],
+        "type": "object",
+        "properties": {
+          "source_entry": {
+            "title": "Source Entry",
+            "type": "string"
+          },
+          "target_entry": {
+            "title": "Target Entry",
+            "type": "string"
+          },
+          "linking": {
+            "title": "Linking",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SenseLink"
+            }
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "LinkingSource": {
+        "title": "LinkingSource",
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "title": "Endpoint",
+            "maxLength": 2083,
+            "minLength": 1,
+            "type": "string",
+            "format": "uri"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "entries": {
+            "title": "Entries",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "apiKey": {
+            "title": "Apikey",
+            "type": "string"
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "LinkingStatus": {
+        "title": "LinkingStatus",
+        "type": "object",
+        "properties": {
+          "state": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LinkingJobStatus"
+              }
+            ],
+            "default": "PROCESSING"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string",
+            "default": "Still working ..."
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "LinkingType": {
+        "title": "LinkingType",
+        "enum": [
+          "exact",
+          "broader",
+          "narrower",
+          "related"
+        ],
+        "type": "string",
+        "description": "An enumeration."
+      },
+      "PartOfSpeech": {
+        "title": "PartOfSpeech",
+        "enum": [
+          "ADJ",
+          "ADP",
+          "ADV",
+          "AUX",
+          "CCONJ",
+          "DET",
+          "INTJ",
+          "NOUN",
+          "NUM",
+          "PART",
+          "PRON",
+          "PROPN",
+          "PUNCT",
+          "SCONJ",
+          "SYM",
+          "VERB",
+          "X"
+        ],
+        "type": "string",
+        "description": "From: https://universaldependencies.org/u/pos/"
+      },
+      "RdfFormats": {
+        "title": "RdfFormats",
+        "enum": [
+          "tei",
+          "json",
+          "ontolex"
+        ],
+        "type": "string",
+        "description": "An enumeration."
+      },
+      "ReleasePolicy": {
+        "title": "ReleasePolicy",
+        "enum": [
+          "PUBLIC",
+          "NONCOMMERCIAL",
+          "RESEARCH",
+          "PRIVATE"
+        ],
+        "type": "string",
+        "description": "An enumeration."
+      },
+      "SenseLink": {
+        "title": "SenseLink",
+        "required": [
+          "source_sense",
+          "target_sense",
+          "type",
+          "score"
+        ],
+        "type": "object",
+        "properties": {
+          "source_sense": {
+            "title": "Source Sense",
+            "type": "string"
+          },
+          "target_sense": {
+            "title": "Target Sense",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/LinkingType"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "description": "Our Pydantic model base."
+      },
+      "ValidationError": {
+        "title": "ValidationError",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "loc": {
+            "title": "Location",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
