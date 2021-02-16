@@ -1,5 +1,4 @@
 import itertools
-import logging
 from http import HTTPStatus
 from typing import List, Optional
 
@@ -11,8 +10,6 @@ from fastapi.responses import ORJSONResponse, Response
 from .db import get_db
 from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech
 from .rdf import JSONLD_CONTEXT, entry_to_jsonld, entry_to_tei, entry_to_turtle
-
-log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -162,6 +159,6 @@ async def _get_entry(db, dictionary, entry_id,):
 
 
 @router.get('/context.jsonld', include_in_schema=False)
-def jsonld_context():
+async def jsonld_context():
     return ORJSONResponse(JSONLD_CONTEXT,
                           media_type='application/ld+json')
