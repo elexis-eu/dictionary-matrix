@@ -88,8 +88,7 @@ def dispatch_migration():
     try:
         with FileLock(lock_file), \
                 get_db_sync() as db:
-            if not db.list_collection_names():
-                return _migration_v0(db)
+            _migration_v0(db)
             ...
             assert sorted(db.list_collection_names()) == sorted(_collection_names), \
                 "Db collections don't match expectations." \
@@ -112,9 +111,15 @@ def _migration_v0(db: _DbType):
         except pymongo.errors.CollectionInvalid as exc:
             assert 'already exists' in str(exc)
 
+        # Drop indexes
+        db[collection].drop_indexes()
+
     # Create indexes
-    db.dicts.create_index('api_key')
-    db.entry.create_index([('_dict_id', 1), ('lemma', 1)])
+    for collection, index in [
+        ('dicts', 'api_key'),
+        ('entry', [('_dict_id', 1), ('lemma', 1)]),
+    ]:
+        db[collection].create_index(index)
 
     # TODO create views?
 
