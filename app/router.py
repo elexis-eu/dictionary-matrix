@@ -110,6 +110,8 @@ async def list_lemma(
         limit: Optional[int] = _LIMIT_QUERY,
         inflected: Optional[bool] = Query(False),   # TODO: what about this?
 ):
+    if inflected:
+        raise HTTPException(status_code=HTTPStatus.NOT_IMPLEMENTED)
     pos_cond = {'partOfSpeech': partOfSpeech} if partOfSpeech else {}
     entries = await db.entry.aggregate([
         {'$match': {'_dict_id': ObjectId(dictionary),
