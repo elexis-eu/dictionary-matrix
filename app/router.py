@@ -8,7 +8,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import ORJSONResponse, Response
 
 from .db import get_db
-from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech
+from .models import Dictionaries, Dictionary, Lemma, PartOfSpeech, RdfFormats
 from .rdf import JSONLD_CONTEXT, entry_to_jsonld, entry_to_tei, entry_to_turtle
 
 router = APIRouter()
@@ -72,6 +72,14 @@ async def about(
     return doc
 
 
+def _add_available_entry_formats(entries):
+    # Advertize available formats
+    formats = RdfFormats.values()
+    for entry in entries:
+        entry['formats'] = formats
+    return entries
+
+
 @router.get('/list/{dictionary}', response_model=List[Lemma])
 async def list_dict(
         db=Depends(_get_db_verify_api_key),
@@ -88,6 +96,7 @@ async def list_dict(
         {'$project': dict(zip(Lemma.__fields__.keys(),
                               itertools.repeat(True)))},
     ]).to_list(None)
+    _add_available_entry_formats(entries)
     return jsonable_encoder(entries, custom_encoder={ObjectId: str})
 
 
@@ -112,6 +121,7 @@ async def list_lemma(
         {'$project': dict(zip(Lemma.__fields__.keys(),
                               itertools.repeat(True)))},
     ]).to_list(None)
+    _add_available_entry_formats(entries)
     return jsonable_encoder(entries, custom_encoder={ObjectId: str})
 
 

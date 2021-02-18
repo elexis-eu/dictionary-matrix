@@ -33,6 +33,7 @@ async def test_list(client, example_id):
     obj = response.json()
     assert len(obj)
     assert 'partOfSpeech' in obj[0]
+    assert 'json' in obj[0]['formats']
 
 
 async def test_lemma(client, example_id):
@@ -40,6 +41,7 @@ async def test_lemma(client, example_id):
     obj = response.json()
     assert len(obj)
     assert 'partOfSpeech' in obj[0]
+    assert 'json' in obj[0]['formats']
 
 
 @pytest.fixture(scope='module')
