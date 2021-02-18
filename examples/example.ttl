@@ -3,9 +3,7 @@
 @prefix lime: <http://www.w3.org/ns/lemon/lime#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
-@prefix dc11: <http://purl.org/dc/elements/1.1/> .
 @prefix dc: <http://purl.org/dc/terms/> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 <#dictionary> a lime:Lexicon ;
     lime:language "en" ;
@@ -28,12 +26,10 @@
     ontolex:sense <#cat-n-1>, <#cat-n-2> .
 
 <#cat-n-1> a ontolex:LexicalSense ;
-    rdfs:label "cat-n-1" ;
     skos:definition "a type of animal"@en, "vrsta živali"@sl ;
     ontolex:reference <http://dbpedia.org/page/Cat> .
 
 <#cat-n-2> a ontolex:LexicalSense ;
-    rdfs:label "cat-n-2" ;
     skos:definition "an attractive woman"@en, "privlačna ženska"@sl .
 
 <#cat-v> a ontolex:Word ;
@@ -42,9 +38,7 @@
     ontolex:sense <#cat-v-1>, <#cat-v-2> .
 
 <#cat-v-1> a ontolex:LexicalSense ;
-    rdfs:label "cat-v-1" ;
     skos:definition "print contents of a computer file"@en .
 
 <#cat-v-2> a ontolex:LexicalSense ;
-    rdfs:label "cat-v-2" ;
     skos:definition "raise (an anchor) from the surface of the water to the cathead"@en .
