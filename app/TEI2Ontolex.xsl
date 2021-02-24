@@ -543,7 +543,7 @@
 
     <xsl:template match="tei:date">
         <dc:date>
-            <xsl:value-of select="normalize-space(@when | .)"/>
+            <xsl:value-of select="normalize-space(@when | text())"/>
         </dc:date>
     </xsl:template>
 
@@ -554,9 +554,9 @@
     </xsl:template>
 
     <xsl:template match="tei:licence">
-        <dct:licence>
-            <xsl:value-of select="normalize-space(@target | .)"/>
-        </dct:licence>
+        <dct:license>
+            <xsl:value-of select="normalize-space(@target | text())"/>
+        </dct:license>
     </xsl:template>
 
     <xsl:template match="tei:sourceDesc">
