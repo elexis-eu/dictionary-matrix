@@ -4,7 +4,6 @@ services:
     build: .
     image: dictionary-matrix
     restart: unless-stopped
-    user: "10000:10000"
     depends_on:
       - mongodb
     networks:

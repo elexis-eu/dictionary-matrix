@@ -12,10 +12,8 @@ RUN set -eux; \
 COPY /app /app/app
 RUN set -eux; \
     mkdir $UPLOAD_PATH; \
-    chown 10000:10000 /app /tmp $UPLOAD_PATH; \
     python app/app --help  # smoke test
 
-USER 10000:10000
 WORKDIR /app
 EXPOSE 8000
 VOLUME $UPLOAD_PATH
