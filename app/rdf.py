@@ -302,7 +302,8 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
                     sense_obj['definition'][lang] = ' '.join(defs)
 
                 sense_obj = remove_empty_keys(sense_obj)
-                if sense_obj:
+                if sense_obj and (sense_obj.get('definition') or
+                                  sense_obj.get('reference')):
                     entry_obj['senses'].append(sense_obj)
             assert entry_obj['senses'], f"Need sense for entry {writtenRep}"
 

@@ -133,7 +133,8 @@ class _Sense(BaseModel):
 
     @root_validator
     def check_valid(cls, values):
-        assert values['definition'] or values['reference']
+        assert values['definition'] or values['reference'], \
+            'sense requires definition and/or reference'
         return values
 
 
