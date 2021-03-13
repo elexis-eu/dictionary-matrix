@@ -23,4 +23,4 @@ VOLUME $UPLOAD_PATH
 ENTRYPOINT ["python", "app"]
 CMD ["deploy"]
 HEALTHCHECK --interval=5m --timeout=3s \
-    CMD python -c 'import requests as r; r.get("http://localhost:8000").raise_for_status()'
+    CMD python -c 'import httpx as r; r.get("http://localhost:8000").raise_for_status()'
