@@ -1,4 +1,5 @@
-FROM python:3.7-slim
+# Can't use "python:3.7-slim". OpenJDK Java below fails to install with it.
+FROM python:3.7
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
@@ -13,6 +14,13 @@ COPY /app /app/app
 RUN set -eux; \
     mkdir $UPLOAD_PATH; \
     python app/app --help  # smoke test
+
+# Install Java for Naisc
+# If someday this is not required, use a slimmer "FROM" image above.
+RUN set -eux; \
+    apt-get update && apt-get -y install --no-install-recommends openjdk-11-jre; \
+    java --version; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 EXPOSE 8000
