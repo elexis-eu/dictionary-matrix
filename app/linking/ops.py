@@ -302,11 +302,10 @@ def _linking_from_naisc_executable(job):
     for line in proc.stdout.split('\n'):
         if not line.strip():
             continue
-        sep = line.rindex('#')
-        score = float(line[sep + 1:])
-        left_id, match_type, right_id = re.sub(
-            r'<.*?#(.*?)>\s<.*?#(.*?)>\s<.*?#(.*?)>.*',
-            r'\1 \2 \3', line[:sep]).split()
+        left_id, match_type, right_id, score = re.sub(
+            r'<.*?#(.*?)>\s<.*?#(.*?)>\s<.*?#(.*?)> *\. *# *([\d.]+)',
+            r'\1\t\2\t\3\t\4', line).split('\t')
+        score = float(score)  # type: ignore
         left_id = removeprefix(left_id)  # Strip base URI, if applicable
         right_id = removeprefix(right_id)
         match_type = {
