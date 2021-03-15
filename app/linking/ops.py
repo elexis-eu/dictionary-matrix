@@ -287,7 +287,9 @@ def _linking_from_naisc_executable(job):
                                              for entry in entries
                                              for sense in entry['senses']})
 
-        proc = subprocess.run([settings.LINKING_NAISC_EXECUTABLE, *temp_files],
+        proc = subprocess.run([settings.LINKING_NAISC_EXECUTABLE,
+                               '-c', 'configs/auto.json',
+                               *temp_files],
                               capture_output=True, text=True)
         if proc.returncode != 0:
             raise RuntimeError('Naisc errored with:\n' + proc.stderr)
