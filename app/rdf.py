@@ -299,7 +299,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
                     definitions[lang].append(text_content(el))
                 # Join sense definitions in same language. Probably from sub-senses.
                 for lang, defs in definitions.items():
-                    sense_obj['definition'][lang] = ' '.join(defs)
+                    sense_obj['definition'][lang] = '; '.join(defs)
 
                 sense_obj = remove_empty_keys(sense_obj)
                 if sense_obj and (sense_obj.get('definition') or
