@@ -196,6 +196,15 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
             return [v for v in (remove_empty_keys(v) for v in obj) if v]
         return obj
 
+    def copy_with_lemma(entry_obj: dict, headword: str) -> dict:
+        entry_obj = deepcopy(entry_obj)
+        entry_obj['lemma'] = headword
+        # Set writtenRep to the current lemma ONLY as this
+        # (canonicalForm.writtenRep) is the main way the entry reports
+        # (exports) its lemma (see entry_to_* below).
+        entry_obj['canonicalForm']['writtenRep'][lexicon_lang] = [headword]
+        return entry_obj
+
     targetLanguages = set()
     errors: List[str] = []
     lexicon_obj: dict = {
@@ -277,7 +286,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
             # Part-of-speech
             pos = list(get_partOfSpeech(entry_el))
             assert len(pos) == 1, \
-                f"'Need exactly one partOfSpeech for entry #{entry_i}: {writtenRep}"
+                f"'Need exactly one partOfSpeech for entry #{entry_i}: {writtenRep}, have {pos}"
             entry_obj['partOfSpeech'] = \
                 lexinfo_pos_to_ud(strip_ns(pos[0].attrib[RDF_RESOURCE]))
 
@@ -318,7 +327,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
             # Construct an entry for each headword in the default language
             entry_obj = remove_empty_keys(entry_obj)
             lexicon_obj['entries'].extend([
-                dict(entry_obj, lemma=headword)
+                copy_with_lemma(entry_obj, headword)
                 for headword in entry_obj['canonicalForm']['writtenRep'][lexicon_lang]
             ])
         except Exception as e:
