@@ -98,7 +98,7 @@ class Dictionary(BaseModel):
     sourceLanguage: Language
     targetLanguage: Optional[List[Language]]
     genre: Optional[List[Genre]]
-    license: Optional[HttpUrl]
+    license: Optional[Union[HttpUrl, str]]
     title: Optional[str]
     creator: Optional[Union[List, str]]
     publisher: Optional[Union[List, str]]
