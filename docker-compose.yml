@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     depends_on:
       - mongodb
+      - naisc
     networks:
       - frontend
       - backend
@@ -13,11 +14,13 @@ services:
       - "8000:8000"
     volumes:
       - uploads:/uploads
+      - naisc:/naisc
     environment:
       DEBUG: true
       UPLOAD_PATH: '/uploads'
       SESSION_COOKIE_SECRET_KEY: "change me secret"
       MONGODB_CONNECTION_STRING: 'mongodb://mongodb'
+      LINKING_NAISC_EXECUTABLE: '/naisc/naisc.sh'
 
   mongodb:
     image: mongo:4.4
@@ -27,6 +30,14 @@ services:
     networks:
       - backend
 
+  naisc:
+    build:
+      dockerfile: Dockerfile.naisc
+    entrypoint: sh
+    restart: unless-stopped
+    volumes:
+      - naisc:/naisc
+
 networks:
   frontend:
     driver: bridge
@@ -35,3 +46,4 @@ networks:
 volumes:
   uploads:
   mongodbdata:
+  naisc:

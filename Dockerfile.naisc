@@ -1,0 +1,32 @@
+FROM openjdk:11-slim
+
+WORKDIR /
+
+ARG version=v1.1
+ADD https://github.com/insight-centre/naisc/archive/refs/tags/$version.tar.gz naisc.tar.gz
+
+RUN set -eux; \
+    tar xvzf naisc.tar.gz; \
+    rm naisc.tar.gz; \
+    mv naisc* naisc; \
+    cd /naisc; \
+    ./gradlew jarWithDeps; \
+    rm -rf ~/.gradle; \
+    sed -i '/gradlew/d' /naisc/naisc.sh;
+
+WORKDIR /naisc
+
+ADD http://john.mccr.ae/naisc/idf   models/idf
+ADD http://john.mccr.ae/naisc/ngidf models/ngidf
+
+RUN set -eux; \
+    apt-get update && apt-get -y install wget unzip; \
+    wget --progress=bar:force http://nlp.stanford.edu/data/glove.6B.zip; \
+    unzip -d models glove.6B.zip glove.6B.100d.txt; \
+    rm glove.6B.zip; \
+    apt-get -y purge wget unzip && apt-get -y autoremove; \
+    rm -rf /var/lib/apt/lists/*
+
+VOLUME /naisc
+ENTRYPOINT []
+CMD []
