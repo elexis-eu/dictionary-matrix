@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.naisc
-    entrypoint: sh
+    entrypoint: "sh -c 'while true; do sleep inf; done'"
     restart: unless-stopped
     volumes:
       - naisc:/naisc
