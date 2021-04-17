@@ -16,7 +16,7 @@ services:
       - uploads:/uploads
       - naisc:/naisc
     environment:
-      DEBUG: true
+      DEBUG: 'true'
       UPLOAD_PATH: '/uploads'
       SESSION_COOKIE_SECRET_KEY: "change me secret"
       MONGODB_CONNECTION_STRING: 'mongodb://mongodb'
@@ -32,6 +32,7 @@ services:
 
   naisc:
     build:
+      context: .
       dockerfile: Dockerfile.naisc
     entrypoint: sh
     restart: unless-stopped
