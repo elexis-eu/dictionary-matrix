@@ -1,10 +1,9 @@
 from typing import List, Optional
 
 from bson import ObjectId
-from pydantic import validator
+from pydantic import AnyHttpUrl, validator
 
 from ..models import BaseModel, _AutoStrEnum
-from ..importing.models import Url
 
 
 class LinkingJobStatus(_AutoStrEnum):
@@ -12,7 +11,7 @@ class LinkingJobStatus(_AutoStrEnum):
 
 
 class LinkingSource(BaseModel):
-    endpoint: Optional[Url]
+    endpoint: Optional[AnyHttpUrl]
     id: str
     entries: Optional[List[str]]
     apiKey: Optional[str]
@@ -52,7 +51,7 @@ class LinkingOneResult(BaseModel):
 
 class LinkingJobPrivate(LinkingJob, LinkingStatus):
     remote_task_id: str = ''
-    service_url: Url = ''
+    service_url: Optional[AnyHttpUrl] = None
     id: ObjectId
     result: Optional[List[LinkingOneResult]]
 
