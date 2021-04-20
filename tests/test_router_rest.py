@@ -75,3 +75,13 @@ async def test_entry_turtle(client, example_id, entry_id):
     response = await client.get(f'/ontolex/{example_id}/{entry_id}')
     assert 'text/turtle' in response.headers['content-type']
     assert_turtle(response.text)
+
+
+@pytest.mark.parametrize('type', ['json', 'tei', 'ontolex'])
+async def test_invalid_ids(client, example_id, type):
+    invalid_id = 'f' * 24
+    response = await client.get(f'/{type}/{example_id}/{invalid_id}')
+    assert HTTPStatus.NOT_FOUND == response.status_code
+
+    response = await client.get(f'/{type}/{invalid_id}/{invalid_id}')
+    assert HTTPStatus.FORBIDDEN == response.status_code

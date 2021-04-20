@@ -167,6 +167,8 @@ async def _get_entry(db, dictionary, entry_id,):
     entry = await db.entry.find_one(
         {'_dict_id': ObjectId(dictionary), '_id': ObjectId(entry_id)},
         {'_dict_id': False, 'lemma': False})
+    if entry is None:
+        raise HTTPException(HTTPStatus.NOT_FOUND)
     return entry
 
 
