@@ -19,20 +19,20 @@ def _get_upload_filename(username, filename) -> str:
                f'{now}-{safe_path(username)}-{safe_path(filename)}')
 
 
-def _process_one_dict(id: str):
-    id = ObjectId(id)
+def _process_one_dict(job_id: str):
+    job_id = ObjectId(job_id)
     log = logging.getLogger(__name__)
-    log.debug('Start import job %s', id)
+    log.debug('Start import job %s', job_id)
     reset_db_client()
     with get_db_sync() as db:
-        job = db.import_jobs.find_one({'_id': id})
+        job = db.import_jobs.find_one({'_id': job_id})
         job = ImportJob(**job)
         assert job.state == JobStatus.SCHEDULED
         filename = job.file
         try:
             # Download
             if job.url and not filename:
-                log.debug('Download %s from %r', id, job.url)
+                log.debug('Download %s from %r', job_id, job.url)
                 filename = _get_upload_filename(job.meta.api_key, job.url)
                 with httpx.stream("GET", job.url) as response:
                     num_bytes_expected = int(response.headers["Content-Length"])
@@ -44,11 +44,11 @@ def _process_one_dict(id: str):
 
             # Parse file
             assert filename
-            log.debug('Parse %s from %r', id, filename)
+            log.debug('Parse %s from %r', job_id, filename)
             obj = file_to_obj(filename, job.meta.sourceLanguage)
 
             # Transfer properties
-            obj['_id'] = id
+            obj['_id'] = job_id
             # We add job.meta properrties on base object, which in
             # router /about get overriden by meta from file
             obj.update(job.meta.dict(exclude_none=True, exclude_unset=True))
@@ -57,28 +57,28 @@ def _process_one_dict(id: str):
             entries = obj.pop('entries')
             assert entries, 'No entries in dictionary'
             for entry in entries:
-                entry['_dict_id'] = id
+                entry['_dict_id'] = job_id
 
             obj['n_entries'] = len(entries)
 
             # Insert dict, entries
-            log.debug('Insert %s with %d entries', id, len(entries))
+            log.debug('Insert %s with %d entries', job_id, len(entries))
             result = db.entry.insert_many(entries)
             obj['_entries'] = result.inserted_ids  # Inverse of _dict_id
             result = db.dicts.insert_one(obj)
-            assert result.inserted_id == id
+            assert result.inserted_id == job_id
 
             # Mark job done
             db.import_jobs.update_one(
-                {'_id': id}, {'$set': {'state': JobStatus.DONE}})
+                {'_id': job_id}, {'$set': {'state': JobStatus.DONE}})
             if settings.UPLOAD_REMOVE_ON_SUCCESS:
                 os.remove(filename)
-            log.debug('Done %s', id)
+            log.debug('Done %s', job_id)
 
         except Exception:
-            log.exception('Error processing %s', id)
+            log.exception('Error processing %s', job_id)
             db.import_jobs.update_one(
-                {'_id': id}, {'$set': {'state': JobStatus.ERROR,
+                {'_id': job_id}, {'$set': {'state': JobStatus.ERROR,
                                        'error': traceback.format_exc()}})
             if settings.UPLOAD_REMOVE_ON_FAILURE and os.path.isfile(filename):
                 os.remove(filename)
