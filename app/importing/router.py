@@ -5,6 +5,7 @@ from http import HTTPStatus
 from queue import SimpleQueue
 from typing import List, Optional
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import PlainTextResponse
 
@@ -34,6 +35,11 @@ async def dict_import(
         url: Optional[Url] = Query(
             None,
             description='URL of the dictionary to fetch and import. See <em>file=</em>.',
+        ),
+        dictionary: Optional[str] = Query(
+            None,
+            description='Id of dictionary to replace.',
+            regex='^[a-z0-f]{24}$',
         ),
         file: Optional[UploadFile] = File(
             None,
@@ -70,6 +76,7 @@ async def dict_import(
         job = ImportJob(
             url=url,
             file=upload_path,
+            dict_id=dictionary and ObjectId(dictionary),
             state=JobStatus.SCHEDULED,
             meta=dict(
                 release=release,

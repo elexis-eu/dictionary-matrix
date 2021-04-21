@@ -1,6 +1,7 @@
 import sys
 from typing import List, Optional
 
+from bson import ObjectId
 from pydantic import AnyHttpUrl, FilePath, HttpUrl, root_validator, validator
 
 from app.models import BaseModel, Genre, Language, ReleasePolicy, _AutoStrEnum
@@ -25,6 +26,7 @@ class ImportJob(BaseModel):
     file: Optional[FilePath]
     state: JobStatus
     meta: _ImportMeta
+    dict_id: Optional[ObjectId]
 
     @validator('url', 'file')
     def cast_to_str(cls, v):

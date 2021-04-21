@@ -109,3 +109,11 @@ async def example_entry_ids(example_id):
         cursor = db.entry.find({'_dict_id': ObjectId(example_id)}, {'_id': True})
         ids = [str(i['_id']) for i in cursor]
     return ids
+
+
+@pytest.fixture(scope='module')
+async def entry_id(client, example_id):
+    response = await client.get(f'/lemma/{example_id}/cat',
+                                params={'offset': 0, 'limit': 1})
+    entry_id = response.json()[0]['id']
+    return entry_id

@@ -44,14 +44,6 @@ async def test_lemma(client, example_id):
     assert 'json' in obj[0]['formats']
 
 
-@pytest.fixture(scope='module')
-async def entry_id(client, example_id):
-    response = await client.get(f'/lemma/{example_id}/cat',
-                                params={'offset': 0, 'limit': 1})
-    entry_id = response.json()[0]['id']
-    return entry_id
-
-
 async def test_entry_tei(client, example_id, entry_id):
     response = await client.get(f'/tei/{example_id}/{entry_id}')
     assert 'text/xml' in response.headers['content-type']

@@ -19,7 +19,7 @@ _APIKEY_HEADER = Header(
 _DICT_PATH: str = Path(
     ...,
     description='Dictionary id.',
-    regex=r'[a-f\d]{24}',
+    regex=r'^[a-f\d]{24}$',
 )
 _OFFSET_QUERY = Query(0, ge=0)
 _LIMIT_QUERY = Query(1_000_000, ge=1)

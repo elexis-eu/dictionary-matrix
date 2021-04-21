@@ -42,31 +42,50 @@ def _process_one_dict(job_id: str):
                 assert response.num_bytes_downloaded == num_bytes_expected
                 job.file = filename
 
-            # Parse file
+            # Parse file into dict object
             assert filename
             log.debug('Parse %s from %r', job_id, filename)
             obj = file_to_obj(filename, job.meta.sourceLanguage)
 
             # Transfer properties
             obj['_id'] = job_id
+            obj['import_time'] = str(datetime.now())
             # We add job.meta properrties on base object, which in
             # router /about get overriden by meta from file
             obj.update(job.meta.dict(exclude_none=True, exclude_unset=True))
 
+            # Check if our dict should replace entries from other dict_id
+            dict_id = job.dict_id or job_id
+            if job.dict_id is not None:
+                log.debug('Job %s replaces dict %s', job_id, dict_id)
+                obj['_id'] = dict_id
+
+                old_obj = db.dicts.find_one({'api_key': job.meta.api_key,
+                                             '_id': dict_id},
+                                            {'_id': True})
+                if old_obj is None:
+                    raise Exception('E403, forbidden')
+
+                # Transfer entry ids from old dict
+                obj = _transfer_ids(obj, dict_id, db)
+
             # Extract entries separately, assign them dict id
             entries = obj.pop('entries')
             assert entries, 'No entries in dictionary'
-            for entry in entries:
-                entry['_dict_id'] = job_id
-
             obj['n_entries'] = len(entries)
+            for entry in entries:
+                entry['_dict_id'] = dict_id
+
+            log.debug('Insert %s with %d entries', dict_id, len(entries))
+            # Remove previous dict/entries
+            db.entry.delete_many({'_dict_id': dict_id})
+            db.dicts.delete_one({'_id': dict_id})
 
             # Insert dict, entries
-            log.debug('Insert %s with %d entries', job_id, len(entries))
             result = db.entry.insert_many(entries)
             obj['_entries'] = result.inserted_ids  # Inverse of _dict_id
             result = db.dicts.insert_one(obj)
-            assert result.inserted_id == job_id
+            assert result.inserted_id == dict_id
 
             # Mark job done
             db.import_jobs.update_one(
@@ -79,6 +98,25 @@ def _process_one_dict(job_id: str):
             log.exception('Error processing %s', job_id)
             db.import_jobs.update_one(
                 {'_id': job_id}, {'$set': {'state': JobStatus.ERROR,
-                                       'error': traceback.format_exc()}})
+                                           'error': traceback.format_exc()}})
             if settings.UPLOAD_REMOVE_ON_FAILURE and os.path.isfile(filename):
                 os.remove(filename)
+
+
+def _transfer_ids(new_obj, old_dict_id, db):
+    def entry_to_key(entry):
+        return (
+            entry['lemma'],
+            entry['partOfSpeech'],
+        )
+
+    old_entries = db.entry.find({'_dict_id': old_dict_id},
+                                {'lemma': True,
+                                 'partOfSpeech': True})
+    old_id_by_key = {entry_to_key(entry): entry['_id']
+                     for entry in old_entries}
+    for entry in new_obj['entries']:
+        id = old_id_by_key.get(entry_to_key(entry))
+        if id is not None:
+            entry['_id'] = id
+    return new_obj
