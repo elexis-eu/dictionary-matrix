@@ -38,6 +38,7 @@ def _upstream_submit(service_url, job: LinkingJobPrivate) -> str:
 
 def _upstream_status(job: LinkingJobPrivate) -> LinkingStatus:
     with httpx.Client() as client:
+        assert job.service_url
         response = client.post(urljoin(job.service_url, 'status'),
                                content=job.remote_task_id)
     assert not response.is_error, response.status_code
@@ -47,6 +48,7 @@ def _upstream_status(job: LinkingJobPrivate) -> LinkingStatus:
 
 def _upstream_result(job: LinkingJobPrivate) -> List[dict]:
     with httpx.Client() as client:
+        assert job.service_url
         response = client.post(urljoin(job.service_url, 'result'),
                                content=job.remote_task_id)
     assert not response.is_error, response.status_code
