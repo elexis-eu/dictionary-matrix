@@ -23,7 +23,7 @@ LEXINFO = 'http://www.lexinfo.net/ontology/3.0/lexinfo#'
 TEI = 'http://www.tei-c.org/ns/1.0'
 
 _RDF_IMPORT_BASE = 'elexis:dict'  # Our every imported Turtle dict's namespace
-_RDF_EXPORT_BASE = 'elexis:'
+_RDF_EXPORT_BASE = 'elexis:.#'
 
 _tei_to_ontolex = ET.XSLT(
     ET.parse(str(Path(__file__).resolve().parent / 'TEI2Ontolex.xsl')),
@@ -427,16 +427,25 @@ def entry_to_jsonld(entry: dict, *, prefix_ids=False) -> bytes:
     obj = deepcopy(entry)
     # TODO: Make @context a href
     obj['@context'] = JSONLD_CONTEXT
-    obj['@id'] = id = str(obj.pop("_id"))
+    add_entry_sense_ids(obj)
     obj['@type'] = ONTOLEX + obj.pop('type')
     obj['partOfSpeech'] = 'lexinfo:' + ud_to_lexinfo_pos(obj['partOfSpeech'])
-    for i, sense in enumerate(obj['senses']):
-        sense['@id'] = sense.pop('id', f'{id}-{i}')
     if prefix_ids:
-        obj['@id'] = _RDF_EXPORT_BASE + id
+        obj['@id'] = _RDF_EXPORT_BASE + obj['@id']
         for sense in obj['senses']:
             sense['@id'] = _RDF_EXPORT_BASE + sense['@id']
     return orjson.dumps(obj, option=orjson.OPT_INDENT_2 * bool(settings.DEBUG))
+
+
+def add_entry_sense_ids(entry, id_key='@id'):
+    """
+    Entry senses are assigned ids as in the input RDF,
+    or '{entry_id}-{n}' when none. Modifies the dict in place.
+    """
+    entry[id_key] = id = str(entry.pop("_id"))
+    for i, sense in enumerate(entry['senses']):
+        sense[id_key] = sense.pop('id', f'{id}-{i}')
+    return entry
 
 
 def export_for_naisc(entries: Iterable) -> bytes:

@@ -17,7 +17,7 @@ from .models import (
     LinkingJob, LinkingJobPrivate, LinkingJobStatus, LinkingOneResult,
     LinkingSource, LinkingStatus, SenseLink,
 )
-from ..rdf import export_for_naisc, file_to_obj, removeprefix
+from ..rdf import add_entry_sense_ids, export_for_naisc, file_to_obj, removeprefix
 from ..settings import settings
 from ..db import get_db_sync, reset_db_client
 
@@ -284,18 +284,24 @@ def _linking_from_naisc_executable(job):
                 else:
                     entries = db.entry.find({'_dict_id': ObjectId(id)}, {'_dict_id': False})
                 entries = list(entries)
-                fd.write(export_for_naisc(entries))
-                sense_entry_mappings.append({sense['id']: str(entry['_id'])
+                text = export_for_naisc(entries)
+                fd.write(text)
+                entries = [add_entry_sense_ids(e) for e in entries]
+                sense_entry_mappings.append({sense['@id']: str(entry['@id'])
                                              for entry in entries
                                              for sense in entry['senses']})
 
-        proc = subprocess.run([settings.LINKING_NAISC_EXECUTABLE,
-                               '-c', 'configs/auto.json',
-                               *temp_files],
-                              capture_output=True, text=True)
-        if proc.returncode != 0:
+        log.info('Linking %s to %s', job.source.id, job.target.id)
+        cmdline = [str(settings.LINKING_NAISC_EXECUTABLE),
+                   '-c', 'configs/auto.json',
+                   *temp_files]
+        log.debug('Running Naisc: %s', ' '.join(cmdline))
+        proc = subprocess.run(cmdline, capture_output=True, text=True)
+        if (proc.returncode != 0 or
+                re.search(r'at java\.base|NullPointerException|FAILED', proc.stderr)):
             raise RuntimeError('Naisc errored with:\n' + proc.stderr)
     finally:
+        log.debug('Removing temporary files %s', temp_files)
         for file in temp_files:
             os.remove(file)
 
