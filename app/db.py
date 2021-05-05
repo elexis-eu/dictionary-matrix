@@ -82,18 +82,37 @@ def dispatch_migration():
     In-house migrations dispatcher.
     Hopefully, it is feature-complete and will never need amendments. 🤞
     """
-    lock_file = os.path.join(settings.UPLOAD_PATH,
-                             safe_path(f'{settings.MONGODB_CONNECTION_STRING}'
-                                       f'-{settings.MONGODB_DATABASE}.lock'))
+    path = os.path.join(settings.UPLOAD_PATH,
+                        safe_path(f'{settings.MONGODB_CONNECTION_STRING}'
+                                  f'-{settings.MONGODB_DATABASE}'))
+    lock_file = path + '.lock'
+    pid_file = path + '.pid'
+
+    with FileLock(lock_file):
+        with open(pid_file, 'a+') as fd:
+            fd.seek(0)
+            pid = fd.read()
+            if not pid:
+                fd.seek(0)
+                fd.write(str(os.getpid()))
+                log.info(f'Process {os.getpid()} will migrate the DB')
     try:
-        with FileLock(lock_file), \
-                get_db_sync() as db:
+        with open(pid_file, 'r') as fd:
+            if int(fd.read()) != os.getpid():
+                return
+    except IOError:
+        # If file no longer exists, we were not responsible for it
+        return
+
+    try:
+        log.info(f'Process {os.getpid()} is migrating the DB')
+        with get_db_sync() as db:
             _migration_v0(db)
-            ...
             assert sorted(db.list_collection_names()) == sorted(_collection_names), \
                 "Db collections don't match expectations." \
                 "Prolly a residue db or missing a migration."
     finally:
+        os.remove(pid_file)
         # Close/clear the sync client not to leave
         # the connection needlessly open
         _db_client_sync().close()
