@@ -1,8 +1,10 @@
 import logging
 import os
 import traceback
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, Tuple
 
 import httpx
 from bson import ObjectId
@@ -105,16 +107,23 @@ def _process_one_dict(job_id: str):
 
 def _transfer_ids(new_obj, old_dict_id, db):
     def entry_to_key(entry):
-        return (
+        key = (
             entry['lemma'],
             entry['partOfSpeech'],
         )
+        entry_counter[key] += 1  # Handles multiple equal <lemma,pos> entries
+        return (
+            *key,
+            entry_counter[key],
+        )
 
+    entry_counter: Dict[Tuple[str, str], int] = defaultdict(int)
     old_entries = db.entry.find({'_dict_id': old_dict_id},
                                 {'lemma': True,
                                  'partOfSpeech': True})
     old_id_by_key = {entry_to_key(entry): entry['_id']
                      for entry in old_entries}
+    entry_counter.clear()
     for entry in new_obj['entries']:
         id = old_id_by_key.get(entry_to_key(entry))
         if id is not None:
