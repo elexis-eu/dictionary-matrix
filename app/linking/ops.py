@@ -117,6 +117,7 @@ def process_linking_job(id: str):  # noqa: C901
             result = _linking_from_naisc_executable(job)
         else:
             # Submit task to the remote linking service
+            assert service_url, service_url
             job.remote_task_id = remote_task_id = _upstream_submit(service_url, job)
             assert remote_task_id
 
@@ -159,6 +160,10 @@ def process_linking_job(id: str):  # noqa: C901
         new_status = LinkingStatus(state=LinkingJobStatus.FAILED,
                                    message=traceback.format_exc())
     finally:
+        n_links = sum(len(i['linking']) for i in our_result)
+        log.debug('Linking job %s finished: total %d links '
+                  'between %d pairs of entries found',
+                  str(id), n_links, len(our_result))
         with get_db_sync() as db:
             db.linking_jobs.update_one(
                 {'_id': ObjectId(id)},
@@ -291,7 +296,7 @@ def _linking_from_naisc_executable(job):
                                              for entry in entries
                                              for sense in entry['senses']})
 
-        log.info('Linking %s to %s', job.source.id, job.target.id)
+        log.info('Linking job %s: dict %s to %s', str(job.id), job.source.id, job.target.id)
         cmdline = [str(settings.LINKING_NAISC_EXECUTABLE),
                    '-c', 'configs/auto.json',
                    *temp_files]

@@ -57,5 +57,4 @@ class LinkingJobPrivate(LinkingJob, LinkingStatus):
 
     @validator('service_url')
     def cast_to_str(cls, v):
-        assert v
-        return str(v)
+        return v and str(v)
