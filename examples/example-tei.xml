@@ -2,7 +2,7 @@
 <?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng"
             schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
 <!-- TODO: This validates with `xmllint -relaxng $model-href $file` -->
-<TEI xmlns="http://www.tei-c.org/ns/1.0">
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:lang="en">
     <teiHeader>
         <fileDesc>
             <titleStmt>
@@ -24,35 +24,35 @@
     </teiHeader>
     <text>
         <body>
-            <entry xml:id="cat-n" xml:lang="en">
+            <entry xml:id="cat-n">
                 <form type="lemma">
-                    <orth xml:lang="en">cat</orth>
+                    <orth>cat</orth>
                     <orth xml:lang="sl">mačka</orth>
                 </form>
                 <gramGrp>
                     <pos norm="NOUN">noun</pos>
                 </gramGrp>
                 <sense n="1" xml:id="cat-n-1">
-                    <def xml:lang="en">a type of animal</def>
+                    <def>a type of animal</def>
                     <def xml:lang="sl">vrsta živali</def>
                 </sense>
                 <sense n="2" xml:id="cat-n-2">
-                    <def xml:lang="en">an attractive woman</def>
+                    <def>an attractive woman</def>
                     <def xml:lang="sl">privlačna ženska</def>
                 </sense>
             </entry>
-            <entry xml:id="cat-v" xml:lang="en">
+            <entry xml:id="cat-v">
                 <form type="lemma">
-                    <orth xml:lang="en">cat</orth>
+                    <orth>cat</orth>
                 </form>
                 <gramGrp>
                     <pos norm="VERB">verb</pos>
                 </gramGrp>
                 <sense n="1" xml:id="cat-v-1">
-                    <def xml:lang="en">print contents of a computer file</def>
+                    <def>print contents of a computer file</def>
                 </sense>
                 <sense n="2" xml:id="cat-v-2">
-                    <def xml:lang="en">raise (an anchor) from the surface of the water to the cathead</def>
+                    <def>raise (an anchor) from the surface of the water to the cathead</def>
                 </sense>
             </entry>
         </body>
