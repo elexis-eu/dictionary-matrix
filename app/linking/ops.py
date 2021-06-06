@@ -160,6 +160,7 @@ def process_linking_job(id: str):  # noqa: C901
         new_status = LinkingStatus(state=LinkingJobStatus.FAILED,
                                    message=traceback.format_exc())
     finally:
+        assert our_result is not None
         n_links = sum(len(i['linking']) for i in our_result)
         log.debug('Linking job %s finished: total %d links '
                   'between %d pairs of entries found',
@@ -271,7 +272,7 @@ def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
         return new_source
 
 
-def _linking_from_naisc_executable(job):
+def _linking_from_naisc_executable(job) -> List[dict]:
     assert settings.LINKING_NAISC_EXECUTABLE
     assert job.source.endpoint.startswith(_local_endpoint())
     assert job.target.endpoint.startswith(_local_endpoint())
