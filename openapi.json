@@ -27,6 +27,18 @@
             "in": "query"
           },
           {
+            "description": "Id of dictionary to replace.",
+            "required": false,
+            "schema": {
+              "title": "Dictionary",
+              "pattern": "^[a-z0-f]{24}$",
+              "type": "string",
+              "description": "Id of dictionary to replace."
+            },
+            "name": "dictionary",
+            "in": "query"
+          },
+          {
             "description": "API key of the user uploading the dictionary.",
             "required": true,
             "schema": {
@@ -160,7 +172,7 @@
             "required": true,
             "schema": {
               "title": "Dictionary",
-              "pattern": "[a-f\\d]{24}",
+              "pattern": "^[a-f\\d]{24}$",
               "type": "string",
               "description": "Dictionary id."
             },
@@ -212,7 +224,7 @@
             "required": true,
             "schema": {
               "title": "Dictionary",
-              "pattern": "[a-f\\d]{24}",
+              "pattern": "^[a-f\\d]{24}$",
               "type": "string",
               "description": "Dictionary id."
             },
@@ -290,7 +302,7 @@
             "required": true,
             "schema": {
               "title": "Dictionary",
-              "pattern": "[a-f\\d]{24}",
+              "pattern": "^[a-f\\d]{24}$",
               "type": "string",
               "description": "Dictionary id."
             },
@@ -395,7 +407,7 @@
             "required": true,
             "schema": {
               "title": "Dictionary",
-              "pattern": "[a-f\\d]{24}",
+              "pattern": "^[a-f\\d]{24}$",
               "type": "string",
               "description": "Dictionary id."
             },
@@ -454,7 +466,7 @@
             "required": true,
             "schema": {
               "title": "Dictionary",
-              "pattern": "[a-f\\d]{24}",
+              "pattern": "^[a-f\\d]{24}$",
               "type": "string",
               "description": "Dictionary id."
             },
@@ -513,7 +525,7 @@
             "required": true,
             "schema": {
               "title": "Dictionary",
-              "pattern": "[a-f\\d]{24}",
+              "pattern": "^[a-f\\d]{24}$",
               "type": "string",
               "description": "Dictionary id."
             },
@@ -704,10 +716,17 @@
           },
           "license": {
             "title": "License",
-            "maxLength": 2083,
-            "minLength": 1,
-            "type": "string",
-            "format": "uri"
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2083,
+                "format": "uri"
+              },
+              {
+                "type": "string"
+              }
+            ]
           },
           "title": {
             "title": "Title",
@@ -869,7 +888,7 @@
         "properties": {
           "endpoint": {
             "title": "Endpoint",
-            "maxLength": 2083,
+            "maxLength": 65536,
             "minLength": 1,
             "type": "string",
             "format": "uri"
