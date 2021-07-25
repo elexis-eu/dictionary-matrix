@@ -18,7 +18,7 @@ A lexicographic web API built with [Python], [FastAPI], [MongoDB].
 
 ### Test
 
-    $ pytest
+    $ pytest --cov=app
     $ flake8
     $ mypy app tests
 

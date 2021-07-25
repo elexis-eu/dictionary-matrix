@@ -47,4 +47,4 @@ jobs:
       - name: Test
         env:
           UPLOAD_PATH: /tmp
-        run: time pytest
+        run: time pytest --cov=app
