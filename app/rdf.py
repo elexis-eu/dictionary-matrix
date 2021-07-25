@@ -62,7 +62,7 @@ def file_to_obj(filename: str, language: str = None):
     if is_turtle:
         graph = Graph()
         graph.parse(filename, format='turtle', publicID=_RDF_IMPORT_BASE)
-        xml = graph.serialize(format='pretty-xml')
+        xml = graph.serialize(format='pretty-xml').encode('utf-8')
         xml = _parse_xml(BytesIO(xml))
         obj = _ontolex_etree_to_dict(xml, language)
         return obj
@@ -378,7 +378,7 @@ def entry_to_tei(entry: dict) -> str:
     return xml
 
 
-def entry_to_turtle(entry: dict) -> bytes:
+def entry_to_turtle(entry: dict) -> str:
     graph = Graph()
     graph.parse(data=entry_to_jsonld(entry, prefix_ids=True),
                 format='json-ld')
@@ -448,7 +448,7 @@ def add_entry_sense_ids(entry, id_key='@id'):
     return entry
 
 
-def export_for_naisc(entries: Iterable) -> bytes:
+def export_for_naisc(entries: Iterable) -> str:
     graph = Graph()
     for entry in entries:
         graph.parse(data=entry_to_jsonld(entry, prefix_ids=True),

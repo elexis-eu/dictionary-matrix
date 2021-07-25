@@ -18,6 +18,5 @@ motor
 
 # Dictionaries
 lxml
-rdflib
-rdflib-jsonld
+rdflib >= 6.0.0
 httpx

@@ -291,7 +291,7 @@ def _linking_from_naisc_executable(job) -> List[dict]:
                     entries = db.entry.find({'_dict_id': ObjectId(id)}, {'_dict_id': False})
                 entries = list(entries)
                 text = export_for_naisc(entries)
-                fd.write(text)
+                fd.write(text.encode('utf-8'))
                 entries = [add_entry_sense_ids(e) for e in entries]
                 sense_entry_mappings.append({sense['@id']: str(entry['@id'])
                                              for entry in entries

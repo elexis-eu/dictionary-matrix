@@ -29,7 +29,7 @@ def test_entry_to_tei(entry_obj):
 
 
 def test_entry_to_turtle(entry_obj):
-    text = entry_to_turtle(entry_obj).decode()
+    text = entry_to_turtle(entry_obj)
     assert_turtle(text)
 
 
