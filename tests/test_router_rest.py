@@ -7,6 +7,11 @@ from tests.test_rdf import assert_jsonld, assert_tei, assert_turtle
 pytestmark = pytest.mark.asyncio
 
 
+def _assert_no_private_keys(obj):
+    for k in obj.keys():
+        assert not k.startswith('_'), (k, obj)
+
+
 async def test_root(client):
     response = await client.get("/")
     assert HTTPStatus.OK == response.status_code
@@ -25,7 +30,9 @@ async def test_dictionaries(client, example_id):
 
 async def test_about(client, example_id):
     response = await client.get(f'/about/{example_id}')
-    assert 'license' in response.json()
+    obj = response.json()
+    assert 'license' in obj
+    _assert_no_private_keys(obj)
 
 
 async def test_list(client, example_id):
@@ -34,6 +41,8 @@ async def test_list(client, example_id):
     assert len(obj)
     assert 'partOfSpeech' in obj[0]
     assert 'json' in obj[0]['formats']
+    for entry in obj:
+        _assert_no_private_keys(entry)
 
 
 async def test_lemma(client, example_id):
@@ -42,6 +51,8 @@ async def test_lemma(client, example_id):
     assert len(obj)
     assert 'partOfSpeech' in obj[0]
     assert 'json' in obj[0]['formats']
+    for entry in obj:
+        _assert_no_private_keys(entry)
 
 
 async def test_entry_tei(client, example_id, entry_id):
@@ -54,7 +65,9 @@ async def test_entry_jsonld(client, example_id, entry_id):
     response = await client.get(f'/json/{example_id}/{entry_id}')
     assert 'jsonld' in response.headers['Link']
     assert 'application/ld+json' == response.headers['content-type']
-    assert_jsonld(response.json())
+    obj = response.json()
+    assert_jsonld(obj)
+    _assert_no_private_keys(obj)
 
 
 async def test_jsonld_context(client):
