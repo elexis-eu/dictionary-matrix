@@ -5,7 +5,7 @@ from copy import deepcopy
 from functools import lru_cache, partial
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Union
 
 import lxml.etree as ET
 import orjson
@@ -43,8 +43,9 @@ def removeprefix(string: str, prefix: str = _RDF_EXPORT_BASE) -> str:
             string)
 
 
-def file_to_obj(filename: str, language: str = None):
+def file_to_obj(filename: Union[str, Path], language: str = None):
     assert Path(filename).is_file(), filename
+    filename = str(Path(filename))
 
     with open(filename, encoding='utf-8') as f:
         head = f.read(1000)
@@ -89,6 +90,10 @@ def _from_json(filename):
         # Strip type namespace base URI
         # FIXME: This is fragile and based solely on our JSON-LD entry export
         entry['@type'] = entry['@type'].split('#')[-1]
+
+        # Make sure senses are available
+        if 'senses' not in entry:
+            entry['senses'] = []
 
         # Key canonicalForm etc. by language if not already
         lang = entry.get('language', obj['meta']['sourceLanguage'])
@@ -323,7 +328,6 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
                 if sense_obj and (sense_obj.get('definition') or
                                   sense_obj.get('reference')):
                     entry_obj['senses'].append(sense_obj)
-            assert entry_obj['senses'], f"Need sense for entry {writtenRep}"
 
             # Rest
             entry_obj['morphologicalPattern'] = \

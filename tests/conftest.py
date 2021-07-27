@@ -20,7 +20,8 @@ if True:  # Avoids flake8 raising E402
     from app.rdf import file_to_obj
 
 
-EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "examples"
+TESTS_DIR = Path(__file__).resolve().parent
+EXAMPLE_DIR = TESTS_DIR.parent / "examples"
 EXAMPLE_FILES = [
     'example.ttl',
     'example-tei.xml',

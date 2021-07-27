@@ -1,0 +1,38 @@
+{
+    "dict_id": {
+        "meta": {
+            "release": "PUBLIC",
+            "sourceLanguage": "en",
+            "publisher": "ELEXIS"
+        },
+        "entries": [
+            {
+                "@type": "Word",
+                "@id": "plain-strings",
+                "language": "en",
+                "partOfSpeech": "NOUN",
+                "canonicalForm": {
+                    "writtenRep": "plain string, not keyed by language"
+                },
+                "senses": [
+                    {
+                        "definition": "plain string, not keyed by language"
+                    }
+                ]
+            },
+            {
+                "@type": "Word",
+                "@id": "zero-senses",
+                "language": "en",
+                "partOfSpeech": "NOUN",
+                "canonicalForm": {
+                    "writtenRep": {
+                        "en": ["zero senses"]
+                    }
+                }
+            }
+        ]
+    }
+}
+
+

@@ -1,0 +1,10 @@
+@prefix ontolex: <http://www.w3.org/ns/lemon/ontolex#> .
+@prefix lexinfo: <http://www.lexinfo.net/ontology/3.0/lexinfo#> .
+@prefix lime: <http://www.w3.org/ns/lemon/lime#> .
+
+<#dictionary> a lime:Lexicon ;
+    lime:entry <#zero-sense> .
+
+<#zero-sense> a ontolex:Word ;
+    lexinfo:partOfSpeech lexinfo:commonNoun ;
+    ontolex:canonicalForm [ ontolex:writtenRep "zero senses"@en ] .

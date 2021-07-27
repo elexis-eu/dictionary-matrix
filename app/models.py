@@ -149,7 +149,7 @@ class Entry(BaseModel):
 
     canonicalForm: _CanonicalForm
     partOfSpeech: PartOfSpeech
-    senses: conlist(_Sense, min_items=1)  # type: ignore
+    senses: conlist(_Sense, min_items=0)  # type: ignore
 
     language: Optional[Language]
     otherForm: Optional[List[_CanonicalForm]]
