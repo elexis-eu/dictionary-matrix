@@ -2,7 +2,7 @@ import sys
 from typing import List, Optional
 
 from bson import ObjectId
-from pydantic import AnyHttpUrl, FilePath, HttpUrl, root_validator, validator
+from pydantic import AnyHttpUrl, Field, FilePath, HttpUrl, root_validator, validator
 
 from app.models import BaseModel, Genre, Language, ReleasePolicy, _AutoStrEnum
 
@@ -18,15 +18,16 @@ class _ImportMeta(BaseModel):
     release: ReleasePolicy
     sourceLanguage: Optional[Language]
     genre: Optional[List[Genre]]
+
+
+class FileImportJob(BaseModel):
+    state: JobStatus
     api_key: str
-
-
-class ImportJob(BaseModel):
+    dict_id: Optional[ObjectId]
     url: Optional[Url]  # type: ignore
     file: Optional[FilePath]
-    state: JobStatus
     meta: _ImportMeta
-    dict_id: Optional[ObjectId]
+    id: Optional[ObjectId] = Field(None, alias='_id')
 
     @validator('url', 'file')
     def cast_to_str(cls, v):
@@ -35,4 +36,23 @@ class ImportJob(BaseModel):
     @root_validator
     def check_valid(cls, values):
         assert values['url'] or values['file']
+        return values
+
+
+class ApiImportJob(BaseModel):
+    state: JobStatus
+    api_key: str
+    dict_id: Optional[ObjectId]
+    url: Optional[Url]  # type: ignore
+    remote_dict_id: str
+    remote_api_key: Optional[str]
+    id: Optional[ObjectId] = Field(None, alias='_id')
+
+    @validator('url')
+    def cast_to_str(cls, v):
+        return str(v) if v else None
+
+    @root_validator
+    def check_valid(cls, values):
+        assert values['url']
         return values

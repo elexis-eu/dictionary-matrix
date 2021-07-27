@@ -9,8 +9,8 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import PlainTextResponse
 
-from .ops import _get_upload_filename, _process_one_dict
-from .models import ImportJob, JobStatus, Url
+from .ops import _get_upload_filename, _process_one_api, _process_one_file
+from .models import ApiImportJob, FileImportJob, JobStatus, Url
 from ..db import _DbType, get_db
 from ..models import Genre, Language, ReleasePolicy
 from ..settings import settings
@@ -20,7 +20,8 @@ log = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_import_queue: SimpleQueue = SimpleQueue()
+_file_import_queue: SimpleQueue = SimpleQueue()
+_api_import_queue: SimpleQueue = SimpleQueue()
 
 
 @router.post('/import',
@@ -28,9 +29,9 @@ _import_queue: SimpleQueue = SimpleQueue()
              response_model=str,
              response_class=PlainTextResponse,
              summary='Import a new dictionary.',
-             description='Import a new dictionary by direct file upload '
-                         '<b>or</b> an URL from where the dictionary can be fetched.')
-async def dict_import(
+             description='Import a new dictionary by direct file upload <b>or</b> '
+                         'an URL where the dictionary file can be fetched from.')
+async def file_url_import(
         db: _DbType = Depends(get_db),  # TODO secure it
         url: Optional[Url] = Query(
             None,
@@ -73,23 +74,67 @@ async def dict_import(
         with open(upload_path, 'wb') as fd:
             shutil.copyfileobj(file.file, fd, 10_000_000)
     try:
-        job = ImportJob(
+        job = FileImportJob(
             url=url,
             file=upload_path,
             dict_id=dictionary and ObjectId(dictionary),
             state=JobStatus.SCHEDULED,
+            api_key=api_key,
             meta=dict(
                 release=release,
                 sourceLanguage=sourceLanguage,
                 genre=genre,
-                api_key=api_key,
             ))
     except Exception as e:
         log.exception('Invalid request params: %s', e)
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
     result = await db.import_jobs.insert_one(job.dict())
     id = str(result.inserted_id)
-    _import_queue.put(id)
+    _file_import_queue.put(id)
+    return id
+
+
+@router.post('/api_import',
+             status_code=HTTPStatus.CREATED,
+             response_model=str,
+             response_class=PlainTextResponse,
+             summary='Import a new dictionary via Elexis REST API.',
+             description='Import a dictionary from another Elexis REST API endpoint.')
+async def api_import(
+        db: _DbType = Depends(get_db),
+        url: Url = Query(
+            None,
+            description='URL of the Elexis API endpoint.',
+        ),
+        remote_dictionary: str = Query(
+            ...,
+            description='Id of dictionary to replace.',
+        ),
+        local_dictionary: Optional[str] = Query(
+            None,
+            description='Id of dictionary to replace.',
+            regex='^[a-z0-f]{24}$',
+        ),
+        remote_api_key: Optional[str] = Query(
+            None, description='API key to access the remote dictionary.'),
+        local_api_key: str = Query(
+            ..., description='API key of the local user.'),
+):
+    try:
+        job = ApiImportJob(
+            url=url,
+            remote_dict_id=remote_dictionary,
+            dict_id=local_dictionary and ObjectId(local_dictionary),
+            remote_api_key=remote_api_key,
+            api_key=local_api_key,
+            state=JobStatus.SCHEDULED,
+        )
+    except Exception as e:
+        log.exception('Invalid request params: %s', e)
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+    result = await db.import_jobs.insert_one(job.dict())
+    id = str(result.inserted_id)
+    _api_import_queue.put(id)
     return id
 
 
@@ -100,8 +145,13 @@ def ensure_upload_dir():
 
 @router.on_event('startup')
 def prepare_import_queue_and_start_workers():
-    Task(target=_process_one_dict,
-         queue=_import_queue,
+    Task(target=_process_one_file,
+         queue=_file_import_queue,
          n_workers=settings.UPLOAD_N_WORKERS,
-         name='dict_import',
+         name='file_import',
          timeout=settings.UPLOAD_TIMEOUT_SECONDS).start()
+    Task(target=_process_one_api,
+         queue=_api_import_queue,
+         n_workers=settings.API_IMPORT_N_WORKERS,
+         name='api_import',
+         timeout=12*settings.API_IMPORT_TIMEOUT_SECONDS).start()

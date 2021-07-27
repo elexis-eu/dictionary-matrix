@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Union
 import orjson
 from pydantic import (
     BaseModel as _BaseModel,
-    Field, HttpUrl, conlist, constr, root_validator,
+    Field, HttpUrl, conlist, constr, root_validator, validator,
 )
 
 
@@ -42,6 +42,10 @@ class RdfFormats(_AutoStrEnum):
     TEI = 'tei'
     JSON = 'json'
     ONTOLEX = 'ontolex'
+
+    @classmethod
+    def sort_key(cls):
+        return [cls.JSON, cls.TEI, cls.ONTOLEX].index
 
 
 class ReleasePolicy(_AutoStrEnum):
@@ -103,6 +107,12 @@ class Dictionary(BaseModel):
     creator: Optional[Union[List, str]]
     publisher: Optional[Union[List, str]]
 
+    @validator('genre', 'targetLanguage', pre=True)
+    def ensure_list(cls, v):
+        if isinstance(v, str):
+            return [v]
+        return v
+
 
 class Lemma(BaseModel):
     lemma: str
@@ -147,6 +157,7 @@ class Entry(BaseModel):
     type: LexicalEntry = Field(alias='@type')
     id: Optional[str] = Field(alias='@id')
 
+    lemma: Optional[str]
     canonicalForm: _CanonicalForm
     partOfSpeech: PartOfSpeech
     senses: conlist(_Sense, min_items=0)  # type: ignore

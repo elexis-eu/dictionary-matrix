@@ -31,6 +31,9 @@ class _Settings(BaseSettings):
     UPLOAD_REMOVE_ON_SUCCESS: bool = True
     UPLOAD_REMOVE_ON_FAILURE: bool = True
 
+    API_IMPORT_N_WORKERS: int = 2
+    API_IMPORT_TIMEOUT_SECONDS: float = 60 * 60 * 3
+
     LOGGING_CONFIG_FILE: FilePath = str(_APP_PATH / 'logging.dictConfig.json')  # type: ignore
     LOG_LEVEL: Optional[str] = None
     LOG_FILE: Optional[FilePath] = None

@@ -15,9 +15,11 @@ from bson import ObjectId
 
 from .models import (
     LinkingJob, LinkingJobPrivate, LinkingJobStatus, LinkingOneResult,
-    LinkingSource, LinkingStatus, SenseLink,
+    LinkingStatus, SenseLink,
 )
-from ..rdf import add_entry_sense_ids, export_for_naisc, file_to_obj, removeprefix
+from ..importing.models import ApiImportJob, JobStatus
+from ..importing.ops import _process_one_api
+from ..rdf import add_entry_sense_ids, export_for_naisc, removeprefix
 from ..settings import settings
 from ..db import get_db_sync, reset_db_client
 
@@ -64,7 +66,38 @@ def _local_endpoint():
     return urljoin(settings.SITEURL, router.prefix)
 
 
-def process_linking_job(id: str):  # noqa: C901
+def _import_from_api(endpoint, remote_api_key, local_api_key, dict_id, entries):
+    with get_db_sync() as db:
+        job = ApiImportJob(
+            url=endpoint,
+            remote_dict_id=dict_id,
+            remote_api_key=remote_api_key,
+            api_key=local_api_key,
+            state=JobStatus.SCHEDULED,
+        )
+        result = db.import_jobs.insert_one(job.dict())
+        id = str(result.inserted_id)
+        _process_one_api(id)
+
+        while db.import_jobs.find_one({'_id': result.inserted_id,
+                                       'state': JobStatus.SCHEDULED}) is not None:
+            time.sleep(3)
+        job_dict = db.import_jobs.find_one({'_id': result.inserted_id})
+        job = ApiImportJob(**job_dict)
+        assert job.state == JobStatus.DONE, job
+
+        dict_id = str(job.id)
+        entry_origin_ids = list(db.entry.find(
+            {'_dict_id': ObjectId(dict_id), '_origin_id': {'$exists': True}},
+            {'_origin_id': True}
+        ))
+        to_our_id = {i['_origin_id']: str(i['_id'])
+                     for i in entry_origin_ids}
+        our_entries = [to_our_id[i] for i in (entries or [])]
+        return dict_id, our_entries
+
+
+def process_linking_job(job_id: str):  # noqa: C901
     reset_db_client()
     remote_task_id = None
     service_url = None
@@ -72,11 +105,12 @@ def process_linking_job(id: str):  # noqa: C901
     origin_result = None
     job = None
     new_status = LinkingStatus(state=LinkingJobStatus.COMPLETED, message='')
+    log.info('Start linking job %s', job_id)
     try:
         # Get job handle
         while True:  # Maybe retry if db not yet synced
             with get_db_sync() as db:
-                job = db.linking_jobs.find_one({'_id': ObjectId(id)})
+                job = db.linking_jobs.find_one({'_id': ObjectId(job_id)})
                 if job:
                     break
         job = LinkingJobPrivate(**job, id=job['_id'])
@@ -98,17 +132,27 @@ def process_linking_job(id: str):  # noqa: C901
         # Fetch linked entries to obtain a local copy
         origin_source_dict_id = None
         origin_target_dict_id = None
+
+        def ensure_local_source(source):
+            DEFAULT_API_KEY = 'linking'
+            local_api_key = source.apiKey or DEFAULT_API_KEY
+            source.id, entries = _import_from_api(source.endpoint,
+                                                  source.apiKey,
+                                                  local_api_key,
+                                                  source.id,
+                                                  source.entries)
+            if entries:
+                source.entries = entries
+
         if job.source.endpoint:
             origin_source_dict_id = job.source.id
-            job.source = _get_entries(job.source)
-        else:
-            job.source.endpoint = _local_endpoint()
+            ensure_local_source(job.source)
+        job.source.endpoint = _local_endpoint()
         if not is_babelnet:
             if job.target.endpoint:
                 origin_target_dict_id = job.target.id
-                job.target = _get_entries(job.target)
-            else:
-                job.target.endpoint = _local_endpoint()
+                ensure_local_source(job.target)
+            job.target.endpoint = _local_endpoint()
         assert job.source.endpoint.startswith(_local_endpoint())
         assert is_babelnet or job.target.endpoint.startswith(_local_endpoint())
 
@@ -156,120 +200,24 @@ def process_linking_job(id: str):  # noqa: C901
                         res[results_key] = to_origin_id[res[results_key]]
 
     except Exception:
-        log.exception('Unexpected error for linking task %s: %s', id, job)
+        log.exception('Unexpected error for linking task %s: %s', job_id, job)
         new_status = LinkingStatus(state=LinkingJobStatus.FAILED,
                                    message=traceback.format_exc())
+        our_result = []
     finally:
         assert our_result is not None
         n_links = sum(len(i['linking']) for i in our_result)
         log.debug('Linking job %s finished: total %d links '
                   'between %d pairs of entries found',
-                  str(id), n_links, len(our_result))
+                  str(job_id), n_links, len(our_result))
         with get_db_sync() as db:
             db.linking_jobs.update_one(
-                {'_id': ObjectId(id)},
+                {'_id': ObjectId(job_id)},
                 {'$set': dict(new_status,
                               our_result=our_result,
                               origin_result=origin_result,
                               service_url=service_url,
                               remote_task_id=remote_task_id)})
-
-
-def _get_entries(source: LinkingSource) -> LinkingSource:  # noqa: C901
-    def response_to_entry_obj(fmt: str, response: httpx.Response):
-        if fmt == 'json':
-            text = f'''\
-                {{"{our_dict_id}": {{
-                    "meta": {{
-                        "release": "PRIVATE",
-                        "sourceLanguage": "xx"
-                    }},
-                    "entries": [
-                        {response.text}
-                    ]
-                }} }}'''
-        elif fmt == 'ontolex':
-            text = response.text  # Already valid input
-        elif fmt == 'tei':
-            text = f'''\
-                <TEI xmlns="http://www.tei-c.org/ns/1.0">
-                <teiHeader></teiHeader>
-                <text><body>
-                {response.text}
-                </body></text></TEI>'''
-        else:
-            assert False, f'invalid fmt= {fmt!r}'
-
-        with NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as fd:
-            fd.write(text)
-            filename = fd.name
-        try:
-            dict_obj = file_to_obj(filename)
-        finally:
-            os.remove(filename)
-        entry_obj = dict_obj['entries'][0]
-        return entry_obj
-
-    def get_one_entry(origin_entry_id):
-        result = db.entry.find_one({'_origin_id': origin_entry_id,
-                                    '_dict_id': our_dict_id})
-        if result:
-            return str(result['_id'])
-
-        for fmt in ('json', 'ontolex', 'tei'):
-            response = client.get(urljoin(endpoint,
-                                          f'{fmt}/{origin_dict_id}/{origin_entry_id}'))
-            if not response.is_error:
-                break
-        else:
-            raise ValueError('No suitable format for entry '
-                             f'{origin_dict_id}/{origin_entry_id}')
-
-        entry_obj = response_to_entry_obj(fmt, response)
-        entry_obj['_dict_id'] = our_dict_id
-        entry_obj['_origin_id'] = origin_entry_id
-
-        result = db.entry.insert_one(entry_obj)
-        our_entry_id = str(result.inserted_id)
-        db.dicts.update_one({'_id': our_dict_id},
-                            {'$push': {'_entries': our_entry_id}})
-        return our_entry_id
-
-    headers = {'X-API-Key': source.apiKey} if source.apiKey else {}
-    assert source.endpoint
-    endpoint = source.endpoint
-    with get_db_sync() as db, \
-            httpx.Client(headers=headers) as client:
-
-        origin_dict_id = source.id
-        result = db.dicts.find_one(
-            {'_origin_id': origin_dict_id,
-             '_origin_endpoint': endpoint}, {'_id': True})
-        if result:
-            our_dict_id = result['_id']
-        else:
-            response = client.get(urljoin(endpoint, f'about/{origin_dict_id}'))
-            dict_obj = response.json()
-            dict_obj['api_key'] = source.apiKey
-            dict_obj['_origin_id'] = origin_dict_id
-            dict_obj['_origin_endpoint'] = endpoint
-            our_dict_id = db.dicts.insert_one(dict_obj).inserted_id
-
-        origin_entry_ids = source.entries
-        if not origin_entry_ids:
-            response = client.get(urljoin(endpoint, f'list/{origin_dict_id}'))
-            origin_entry_ids = [i['id'] for i in response.json()]
-
-        # THIS, is absolutely not how it was supposed to be done
-        our_entry_ids = [get_one_entry(i) for i in origin_entry_ids]
-
-        new_source = LinkingSource(
-            id=str(our_dict_id),
-            endpoint=_local_endpoint(),
-            apiKey=source.apiKey,
-            # Don't request explicit entries if none were passed to us
-            entries=our_entry_ids if source.entries else None)
-        return new_source
 
 
 def _linking_from_naisc_executable(job) -> List[dict]:

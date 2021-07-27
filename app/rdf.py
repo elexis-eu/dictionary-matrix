@@ -104,6 +104,9 @@ def _from_json(filename):
             if isinstance(sense['definition'], str):
                 sense['definition'] = {lang: sense['definition']}
 
+        if 'lemma' not in entry:
+            entry['lemma'] = entry['canonicalForm']['writtenRep'][lang][0]
+
     obj = JsonDictionary(**obj).dict(exclude_none=True, exclude_unset=True)
     return obj
 

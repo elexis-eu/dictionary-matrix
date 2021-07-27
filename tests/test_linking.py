@@ -24,7 +24,8 @@ async def forwarder(client, example_id, example_entry_ids):
         .respond_with_json((await client.get(f'/list/{example_id}')).json())
     json_responses = [Response((await client.get(f'/json/{example_id}/{id}')).content)
                       for id in example_entry_ids]
-    json_responses_iter = iter(json_responses)
+    # We expect two sequential fetches: for mock source and target endpoint
+    json_responses_iter = iter(2 * json_responses)
     httpserver \
         .expect_request(re.compile(rf'/json/{example_id}/[0-9a-f]+')) \
         .respond_with_handler(lambda _: next(json_responses_iter))
@@ -120,9 +121,12 @@ async def _test(client, example_id, monkeypatch, httpserver, endpoint, linking_r
     assert response.json()['state'] == 'PROCESSING', response.json()
 
     # ... but by now it did.
-    time.sleep(.5)
-    response = await client.post('/linking/status', content=task_id)
-    assert not response.is_error, response.json()
+    for i in range(5):
+        time.sleep(1)
+        response = await client.post('/linking/status', content=task_id)
+        assert not response.is_error, response.json()
+        if response.json()['state'] != 'PROCESSING':
+            break
     assert response.json()['state'] == 'COMPLETED', response.json()
 
     response = await client.post('/linking/result', content=task_id)
