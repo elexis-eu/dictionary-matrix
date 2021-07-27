@@ -90,6 +90,15 @@ def _from_json(filename):
         # FIXME: This is fragile and based solely on our JSON-LD entry export
         entry['@type'] = entry['@type'].split('#')[-1]
 
+        # Key canonicalForm etc. by language if not already
+        lang = entry.get('language', obj['meta']['sourceLanguage'])
+        for rep, s in entry.get('canonicalForm', {}).items():
+            if isinstance(s, str):
+                entry['canonicalForm'][rep] = {lang: [s]}
+        for sense in entry['senses']:
+            if isinstance(sense['definition'], str):
+                sense['definition'] = {lang: sense['definition']}
+
     obj = JsonDictionary(**obj).dict(exclude_none=True, exclude_unset=True)
     return obj
 
