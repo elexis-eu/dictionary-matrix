@@ -1,3 +1,4 @@
+import html
 import logging
 import re
 from collections import Counter, defaultdict
@@ -371,12 +372,12 @@ def entry_to_tei(entry: dict, original_ids=False) -> str:
     # TODO: rewrite as tei.tpl
     # TODO: escape HTML
     pos = entry['partOfSpeech']
-    lemmas = [f'<orth xml:lang="{lang}">{value}</orth>'
+    lemmas = [f'<orth xml:lang="{lang}">{html.escape(value, quote=False)}</orth>'
               for lang, values in entry['canonicalForm']['writtenRep'].items()
               for value in values]
 
     def defns(sense):
-        return ''.join(f'<def xml:lang="{lang}">{value}</def>'
+        return ''.join(f'<def xml:lang="{lang}">{html.escape(value, quote=False)}</def>'
                        for lang, value in sense['definition'].items())
     senses = [
         '<sense n="{i}"{id}>{text}</sense>'.format(
@@ -385,11 +386,12 @@ def entry_to_tei(entry: dict, original_ids=False) -> str:
         for i, sense in enumerate(entry['senses'], 1)
     ]
     entry_id = original_ids and entry.get('_origin_id') or entry['_id']
+    NEWLINE = '\n'
     xml = f'''\
 <entry xml:id="{entry_id}">
 <form type="lemma">{''.join(lemmas)}</form>
 <gramGrp><pos norm="{pos}">{pos}</pos></gramGrp>
-{''.join(senses)}
+{NEWLINE.join(senses)}
 </entry>
 '''
     return xml
