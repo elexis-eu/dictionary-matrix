@@ -57,3 +57,15 @@ async def test_replace_dict(client, example_id, entry_id):
 
     response = await client.get(f'/json/{example_id}/{entry_id}')
     assert 'lalala' in str(response.read())
+
+
+async def test_export(client, example_id):
+    response = await client.get(
+        "/export",
+        params={
+            'dictionary': example_id,
+            'api_key': 'test',
+        })
+
+    assert response.status_code == HTTPStatus.OK
+    assert '<TEI ' in response.text

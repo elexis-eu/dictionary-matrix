@@ -7,12 +7,13 @@ from typing import List, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from .ops import _get_upload_filename, _process_one_api, _process_one_file
 from .models import ApiImportJob, FileImportJob, JobStatus, Url
 from ..db import _DbType, get_db
 from ..models import Genre, Language, ReleasePolicy
+from ..rdf import export_to_tei
 from ..settings import settings
 from ..tasks import Task
 
@@ -136,6 +137,41 @@ async def api_import(
     id = str(result.inserted_id)
     _api_import_queue.put(id)
     return id
+
+
+@router.get('/export',
+            status_code=HTTPStatus.OK,
+            response_class=StreamingResponse,
+            summary='Export dictionary to a TEI/XML file.')
+async def export(
+        db: _DbType = Depends(get_db),
+        dictionary: str = Query(
+            ...,
+            description='Dictionary to export.',
+        ),
+        api_key: str = Query(
+            ..., description='API key of the local user.'),
+):
+    dict_obj = await db.dicts.find_one(
+        {'_id': ObjectId(dictionary), 'api_key': api_key},
+        {'entries': False})
+
+    if dict_obj is None:
+        raise HTTPException(404)
+
+    entries = await db.entry.find(
+        {'_dict_id': ObjectId(dictionary)},
+        {'_dict_id': False, 'lemma': False}).to_list(None)
+
+    dict_obj['entries'] = entries
+
+    log.info(f'Exporting dictionary {dictionary}')
+
+    return StreamingResponse(
+        export_to_tei(dict_obj),
+        media_type='application/tei+xml',
+        headers={"Content-Disposition": f"attachment; filename={dictionary}.xml"},
+    )
 
 
 @router.on_event('startup')

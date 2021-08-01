@@ -367,7 +367,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     return lexicon_obj
 
 
-def entry_to_tei(entry: dict) -> str:
+def entry_to_tei(entry: dict, original_ids=False) -> str:
     # TODO: rewrite as tei.tpl
     # TODO: escape HTML
     pos = entry['partOfSpeech']
@@ -384,8 +384,9 @@ def entry_to_tei(entry: dict) -> str:
             id=f' xml:id="{sense["id"]}"' if sense.get('id') else '')
         for i, sense in enumerate(entry['senses'], 1)
     ]
+    entry_id = original_ids and entry.get('_origin_id') or entry['_id']
     xml = f'''\
-<entry xml:id="{entry['_id']}">
+<entry xml:id="{entry_id}">
 <form type="lemma">{''.join(lemmas)}</form>
 <gramGrp><pos norm="{pos}">{pos}</pos></gramGrp>
 {''.join(senses)}
@@ -470,6 +471,35 @@ def export_for_naisc(entries: Iterable) -> str:
         graph.parse(data=entry_to_jsonld(entry, prefix_ids=True),
                     format='json-ld')
     return graph.serialize(format='turtle')
+
+
+def export_to_tei(dict_obj):
+    meta = dict_obj.get('meta', {})
+    yield f'''\
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng"
+            schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
+<!-- Should validate with `xmllint -relaxng $model-href $file` -->
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>{meta.get('title', '')}</title>
+                <author>{meta.get('author', '')}</author>
+            </titleStmt>
+            <publicationStmt>
+                <publisher>{meta.get('publisher', '')}</publisher>
+            </publicationStmt>
+        </fileDesc>
+    </teiHeader>
+    <text>
+        <body>
+'''
+    for entry in dict_obj['entries']:
+        yield entry_to_tei(entry, original_ids=True)
+    yield '''\
+</body></text></TEI>
+'''
 
 
 # Generated with:
