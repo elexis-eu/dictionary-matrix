@@ -61,6 +61,7 @@ async def client() -> AsyncClient:
     async with LifespanManager(app), \
             AsyncClient(app=app,
                         headers={'x-api-key': 'test'},
+                        follow_redirects=True,
                         base_url="http://test") as client:
         yield client
 
