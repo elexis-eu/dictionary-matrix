@@ -10,6 +10,9 @@
                 <author>Max Lexicographer <email>max@localhost</email></author>
             </titleStmt>
             <publicationStmt>
+                <availability>
+                    <licence target="http://www.wtfpl.net/about/"/>
+                </availability>
                 <publisher>
                     <name>Example Publishing</name> and <name>ELEXIS</name>
                 </publisher>

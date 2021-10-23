@@ -490,6 +490,9 @@ def export_to_tei(dict_obj):
                 <author>{meta.get('author', '')}</author>
             </titleStmt>
             <publicationStmt>
+                <availability>
+                    <licence target="{meta.get('license', '')}">{meta.get('license', '')}</license>
+                </availability>
                 <publisher>{meta.get('publisher', '')}</publisher>
             </publicationStmt>
         </fileDesc>
