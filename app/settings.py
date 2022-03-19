@@ -1,3 +1,4 @@
+import os
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -61,3 +62,5 @@ settings = _Settings()
 Global project settings namespace.
 Import and reference values from this object.
 """
+
+os.makedirs(settings.UPLOAD_PATH, exist_ok=True)
