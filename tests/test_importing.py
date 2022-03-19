@@ -39,7 +39,7 @@ async def test_from_url(client, example_file, httpserver):
 async def test_replace_dict(client, example_id, entry_id):
     with open(EXAMPLE_DIR / 'example.ttl', 'rb') as fd:
         text = fd.read()
-    fd = BytesIO(text.replace(b'type of animal', b'lalala'))
+    fd = BytesIO(text.replace(b'type of animal', b'lalala'))  # type: ignore
 
     response = await client.post(
         "/import",
