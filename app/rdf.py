@@ -181,6 +181,13 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
         text = ET.tostring(el, encoding=str, method='text').strip()
         return re.sub(r'\s{2,}', ' ', text)
 
+    def rdf_id(el: ET.ElementBase) -> str:
+        id = (el.attrib.get(RDF_ABOUT)
+              or el.attrib.get(RDF_ID)
+              or el.attrib.get(XMLNS_ID))
+        id = removeprefix(id, _RDF_IMPORT_BASE + '#')
+        return id
+
     def xml_lang(
             el: ET.ElementBase, *,
             _get_lang=XPath('ancestor-or-self::*[@xml:lang][1]/@xml:lang',
@@ -255,6 +262,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     # Get entries
     for entry_i, entry_el in enumerate(get_entry(lexicon_el)):
         entry_obj: dict = {
+            'origin_id': rdf_id(entry_el),
             'type': strip_ns(entry_el.tag),
             'canonicalForm': {
                 'writtenRep': defaultdict(list),
@@ -310,10 +318,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
 
             # Senses
             for sense_el in get_sense(entry_el):
-                sense_id = (sense_el.attrib.get(RDF_ABOUT)
-                            or sense_el.attrib.get(RDF_ID)
-                            or sense_el.attrib.get(XMLNS_ID))
-                sense_id = removeprefix(sense_id, _RDF_IMPORT_BASE + '#')
+                sense_id = rdf_id(sense_el)
                 sense_obj: dict = {
                     'id': sense_id,
                     'definition': {},
@@ -386,9 +391,10 @@ def entry_to_tei(entry: dict, original_ids=False) -> str:
         for i, sense in enumerate(entry['senses'], 1)
     ]
     entry_id = original_ids and entry.get('_origin_id') or entry['_id']
+    origin_id = entry.get('origin_id', '')
     NEWLINE = '\n'
     xml = f'''\
-<entry xml:id="{entry_id}">
+<entry xml:id="{entry_id}"{f' elexis:origin_id="{origin_id}"' if origin_id else ''}>
 <form type="lemma">{''.join(lemmas)}</form>
 <gramGrp><pos norm="{pos}">{pos}</pos></gramGrp>
 {NEWLINE.join(senses)}
@@ -410,6 +416,7 @@ JSONLD_CONTEXT = {
     'lexinfo': LEXINFO,
     'lime': LIME,
     'skos': str(SKOS),
+    'origin_id': '#origin_id',
     'canonicalForm': 'ontolex:canonicalForm',
     'otherForm': 'ontolex:otherForm',
     'writtenRep': {

@@ -117,6 +117,7 @@ class Dictionary(BaseModel):
 class Lemma(BaseModel):
     lemma: str
     id: str
+    origin_id: Optional[str]
     partOfSpeech: PartOfSpeech
     language: Language
     formats: Optional[List[RdfFormats]]
@@ -156,6 +157,7 @@ class Entry(BaseModel):
     context: Optional[Union[Dict, HttpUrl]] = Field(alias='@context')
     type: LexicalEntry = Field(alias='@type')
     id: Optional[str] = Field(alias='@id')
+    origin_id: Optional[str]
 
     lemma: Optional[str]
     canonicalForm: _CanonicalForm

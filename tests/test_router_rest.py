@@ -59,6 +59,7 @@ async def test_entry_tei(client, example_id, entry_id):
     response = await client.get(f'/tei/{example_id}/{entry_id}')
     assert 'text/xml' in response.headers['content-type']
     assert_tei(response.text)
+    assert 'origin_id=' in response.text
 
 
 async def test_entry_jsonld(client, example_id, entry_id):
@@ -68,6 +69,7 @@ async def test_entry_jsonld(client, example_id, entry_id):
     obj = response.json()
     assert_jsonld(obj)
     _assert_no_private_keys(obj)
+    assert 'origin_id' in obj
 
 
 async def test_jsonld_context(client):
@@ -80,6 +82,7 @@ async def test_entry_turtle(client, example_id, entry_id):
     response = await client.get(f'/ontolex/{example_id}/{entry_id}')
     assert 'text/turtle' in response.headers['content-type']
     assert_turtle(response.text)
+    assert 'origin_id' in response.text
 
 
 @pytest.mark.parametrize('type', ['json', 'tei', 'ontolex'])

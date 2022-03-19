@@ -136,7 +136,9 @@ def _migration_v0(db: _DbType):
     # Create indexes
     for collection, index in [
         ('dicts', 'api_key'),
-        ('entry', [('_dict_id', 1), ('lemma', 1)]),
+        ('entry', [('_dict_id', pymongo.ASCENDING),
+                   ('lemma', pymongo.ASCENDING)]),
+        ('entry', [('origin_id', pymongo.ASCENDING)]),
     ]:
         db[collection].create_index(index)
 
