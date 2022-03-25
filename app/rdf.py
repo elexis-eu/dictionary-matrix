@@ -373,7 +373,7 @@ def _ontolex_etree_to_dict(root: ET.ElementBase, language: str = None) -> dict: 
     return lexicon_obj
 
 
-def entry_to_tei(entry: dict, original_ids=False) -> str:
+def entry_to_tei(entry: dict, *, original_ids=False, skip_elexis_xmlns=False) -> str:
     # TODO: rewrite as tei.tpl
     # TODO: escape HTML
     pos = entry['partOfSpeech']
@@ -392,9 +392,14 @@ def entry_to_tei(entry: dict, original_ids=False) -> str:
     ]
     entry_id = original_ids and entry.get('_origin_id') or entry['_id']
     origin_id = entry.get('origin_id', '')
+    origin_id_str = ''
+    if origin_id:
+        origin_id_str = f' elexis:origin_id="{origin_id}"'
+        if not skip_elexis_xmlns:
+            origin_id_str = f' xmlns:elexis="http://matrix.elex.is/" {origin_id_str}'
     NEWLINE = '\n'
     xml = f'''\
-<entry xml:id="{entry_id}"{f' elexis:origin_id="{origin_id}"' if origin_id else ''}>
+<entry xml:id="{entry_id}"{origin_id_str}>
 <form type="lemma">{''.join(lemmas)}</form>
 <gramGrp><pos norm="{pos}">{pos}</pos></gramGrp>
 {NEWLINE.join(senses)}
@@ -489,7 +494,7 @@ def export_to_tei(dict_obj):
 <?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng"
             schematypens="http://relaxng.org/ns/structure/1.0" type="application/xml"?>
 <!-- Should validate with `xmllint -relaxng $model-href $file` -->
-<TEI xmlns="http://www.tei-c.org/ns/1.0">
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:elexis="http://matrix.elex.is/">
     <teiHeader>
         <fileDesc>
             <titleStmt>
@@ -508,7 +513,7 @@ def export_to_tei(dict_obj):
         <body>
 '''
     for entry in dict_obj['entries']:
-        yield entry_to_tei(entry, original_ids=True)
+        yield entry_to_tei(entry, original_ids=True, skip_elexis_xmlns=True)
     yield '''\
 </body></text></TEI>
 '''
