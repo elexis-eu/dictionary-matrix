@@ -1,7 +1,10 @@
 ELEXIS Dictionary Matrix
 ========================
 
-A lexicographic web API built with [Python], [FastAPI], [MongoDB].
+A lexicographic web API that implements
+[ELEXIS Protocol for accessing dictionaries (1.2)](https://elexis-eu.github.io/elexis-rest/)
+and [ELEXIS Protocol for Dictionary Linking (1.0)](https://elexis-eu.github.io/elexis-rest/linking.html).
+Built with [Python], [FastAPI], [MongoDB].
 
 [Python]: https://www.python.org
 [FastAPI]: https://fastapi.tiangolo.com

@@ -14,7 +14,12 @@ class _Settings(BaseSettings):
     DEBUG: bool = False
 
     APP_TITLE: str = 'ELEXIS Dictionary Matrix'
-    APP_DESCRIPTION: str = '...'  # TODO
+    APP_DESCRIPTION: str = '''A lexicographic web API that implements
+<a href="https://elexis-eu.github.io/elexis-rest/">ELEXIS Protocol
+for accessing dictionaries (1.2)</a>
+and <a href="https://elexis-eu.github.io/elexis-rest/linking.html">ELEXIS Protocol
+for Dictionary Linking (1.0)</a>.
+'''
 
     # Base URL where this app is hosted. Used for linking.
     # TODO: test this is set correctly
