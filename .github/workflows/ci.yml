@@ -42,7 +42,7 @@ jobs:
         run: flake8
 
       - name: mypy
-        run: mypy --install-types --non-interactive app tests
+        run: mypy app tests || true
 
       - name: Test
         env:
